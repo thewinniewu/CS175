@@ -340,23 +340,47 @@ static void motion(const int x, const int y) {
   const double dy = g_windowHeight - y - 1 - g_mouseClickY;
 
   Matrix4 m;
+    
+  // self-movement flag.
+  // 1 = red cube moving itself
+  // 2 = blue cube moving itself
+  // 0 = everything else
+  
+  int flag = 0; 
+  if (g_currentObj == 1 && mequals(g_currentView, g_objectRbt[0])) {
+    flag = 1;
+  } else if (g_currentObj == 2 && mequals(g_currentView, g_objectRbt[1])) { 
+    flag = 2;
+  } else if (g_currentObj == 0 && mequals(g_currentView, g_skyRbt)) {
+    flag = 3;
+  }
+  
   if (g_mouseLClickButton && !g_mouseRClickButton && !g_spaceDown) { // left button down?
-    if (mequals(g_currentView, g_skyRbt)) {
+    if (g_currentObj == 0 || (flag == 1) || (flag == 2)) { 
       m = Matrix4::makeXRotation(dy) * Matrix4::makeYRotation(-dx);
     } else { 
       m = Matrix4::makeXRotation(-dy) * Matrix4::makeYRotation(dx);
     }
   }
   else if (g_mouseRClickButton && !g_mouseLClickButton) { // right button down?
-    if (mequals(g_auxFrame, g_worldSkyRbt)) {
-      cout << "you're translating world sky frame\n"; 
-      m = Matrix4::makeTranslation(Cvec3(-dx, -dy, 0) * 0.01);   
+    if (g_currentObj == 0 && mequals(g_auxFrame, g_worldSkyRbt)) {
+      m = Matrix4::makeTranslation(Cvec3(-dx, -dy, 0) * 0.01); 
     } else { 
       m = Matrix4::makeTranslation(Cvec3(dx, dy, 0) * 0.01);
+    }
+    if (flag == 1 || flag == 2) {
+      g_auxFrame = g_currentView;    
     } 
   }
   else if (g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown) ) {  // middle or (left and right, or left + space) button down?
-    m = Matrix4::makeTranslation(Cvec3(0, 0, -dy) * 0.01);
+    if (g_currentObj == 0 && mequals(g_auxFrame, g_worldSkyRbt)) {
+      m = Matrix4::makeTranslation(Cvec3(0,0,dy) * 0.01);
+    } else { 
+      m = Matrix4::makeTranslation(Cvec3(0, 0, -dy) * 0.01);
+    }
+    if (flag == 1 || flag == 2) {
+      g_auxFrame = g_currentView;    
+    } 
   }
 
   if (g_mouseClickDown) {
@@ -364,18 +388,19 @@ static void motion(const int x, const int y) {
       g_objectRbt[g_currentObj-1] = getTransformation(m, g_objectRbt[g_currentObj - 1], g_auxFrame);
       g_auxFrame = transFact(g_objectRbt[g_currentObj-1]) * linFact(g_auxFrame); 
     } else {
-    // sky sky fram
-       if (mequals(g_auxFrame, g_skyRbt)) {
-          cout << "you released mouse button in sky sky \n";
-      } else if (mequals(g_auxFrame, g_worldSkyRbt)) {
-      cout << "you released the mouse button in world sky\n";
+      if (flag == 3) {
+        g_skyRbt = getTransformation(m, g_skyRbt, g_auxFrame);
+        g_currentView = g_skyRbt;
       } 
-      g_skyRbt = getTransformation(m, g_skyRbt, g_auxFrame);
-      g_currentView = g_skyRbt;  
-    } 
+    }
+    if (flag == 1) { 
+      g_currentView = g_objectRbt[0];
+    } else if (flag == 2) {
+      g_currentView = g_objectRbt[1];
+    }
+ 
     glutPostRedisplay(); // we always redraw if we changed the scene
   }
-
   g_mouseClickX = x;
   g_mouseClickY = g_windowHeight - y - 1;
 }
@@ -419,7 +444,7 @@ static void changeView() {
     g_currentView = g_skyRbt;
     drawStuff();
     cout << "g_skyRbt. You are omniscient.\n"; 
-  } 
+  }
 }
 
 static void changeCurrentObject() {
@@ -432,12 +457,10 @@ static void changeCurrentObject() {
 }
 
 static void changeSkyCameraAux() {
-  if (mequals(g_auxFrame, g_skyRbt)) {
-    cout << "ur now in world sky! \n"; 
-    g_auxFrame = g_worldSkyRbt; 
+  if (mequals(g_auxFrame, g_worldSkyRbt)) {
+    g_auxFrame = g_skyRbt; 
   } else {
-    cout << "ur now in sky sky! \n"; 
-    g_auxFrame = g_skyRbt;
+    g_auxFrame = g_worldSkyRbt;
   }
 }
 
@@ -452,7 +475,7 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     changeCurrentObject();
     break;
   case 'm':
-    if (mequals(g_currentView, g_skyRbt)) {
+    if (g_currentObj == 0) {
       changeSkyCameraAux();
     } 
     break;
