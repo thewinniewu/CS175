@@ -3,6 +3,8 @@
 
 #include <cassert>
 #include <cmath>
+#include <iostream>
+using namespace std;
 
 #include "cvec.h"
 
@@ -121,7 +123,6 @@ public:
     }
     return r;
   }
-
 
   static Matrix4 makeXRotation(const double ang) {
     return makeXRotation(std::cos(ang * CS175_PI/180), std::sin(ang * CS175_PI/180));
@@ -277,23 +278,36 @@ inline Matrix4 normalMatrix(const Matrix4& m) {
   return transpose(invm);
 }
 
+inline Matrix4 printMatrix(const Matrix4& m) {
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+      std::cout << "[" << m(i,j) << "]";
+    }
+  std::cout << "\n";
+  }
+}
+
 inline Matrix4 transFact(const Matrix4& m) {
   // TODO
   Matrix4 new_m;
+  std::cout << "translate!\n"; 
   for (int i = 0; i < 3; i++) {
     new_m(i,3) = m(i,3);
-  }
+  } 
+  printMatrix(new_m);
   return new_m;
 }
 
 inline Matrix4 linFact(const Matrix4& m) {   
   // TODO
   Matrix4 new_m;
+  std::cout << "linear!\n"; 
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       new_m(i,j) = m(i,j);
     }
   }
+  printMatrix(new_m);
   return new_m;
 }
 
@@ -307,6 +321,12 @@ inline bool mequals(const Matrix4& m1, const Matrix4& m2) {
   }
   return true;
 }
+
+inline Matrix4 getTransformation (const Matrix4& Q, const Matrix4& O, const Matrix4& A) {
+  return A * Q * inv(A) * O;
+}
+
+
 
 #endif
 

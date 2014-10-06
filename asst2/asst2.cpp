@@ -198,11 +198,18 @@ static shared_ptr<Geometry> g_ground, g_cube;
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
 static Matrix4 g_skyRbt = Matrix4::makeTranslation(Cvec3(0.0, 0.25, 4.0));
 static Matrix4 g_currentView = g_skyRbt;
-static Matrix4 g_objectRbt[CUBES] = {Matrix4::makeTranslation(Cvec3(-0.75,0,0)), Matrix4::makeTranslation(Cvec3(0.75,0,0))}; 
+static Matrix4 g_objectRbt[CUBES] = {Matrix4::makeTranslation(Cvec3(-1,0,0)), Matrix4::makeTranslation(Cvec3(1,0,0))}; 
 static Cvec3f g_objectColors[CUBES] = {Cvec3f(1, 0, 0), Cvec3f(0, 0, 1)};
 
-static Matrix4 g_currentObj = g_objectRbt[0];
-static Matrix4 g_auxFrame = linFact(g_currentView); // TODO FIX THIS TO BE HYBRID FRAME-- origin of g_currentObj and axes of g_currentView; 
+
+/* Keeps track of current object we are manipulating.
+ * 'o' changes the current object.
+ * 0 = sky camera
+ * 1 = red cube
+ * 2 = blue cube
+ * */
+static int g_currentObj = 1; 
+static Matrix4 g_auxFrame = transFact(g_objectRbt[0]) * linFact(g_currentView); 
 
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
@@ -343,7 +350,11 @@ static void motion(const int x, const int y) {
   }
 
   if (g_mouseClickDown) {
-    g_objectRbt[0] *= m; // TODO Simply right-multiply is WRONG
+    if (g_currentObj > 0) {
+      g_objectRbt[g_currentObj-1] = getTransformation(m, g_objectRbt[g_currentObj - 1], g_auxFrame);
+    } else {
+     //TODO 
+    } 
     glutPostRedisplay(); // we always redraw if we changed the scene
   }
 
@@ -393,12 +404,22 @@ static void changeView() {
     }  
 }
 
+static void changeCurrentObject() {
+  g_currentObj = (g_currentObj + 1) % (CUBES + 1);
+  if (g_currentObj > 0) { 
+    g_auxFrame = transFact(g_objectRbt[g_currentObj-1]) * linFact(g_currentView);
+  }
+}
+
 static void keyboard(const unsigned char key, const int x, const int y) {
   switch (key) {
   case 27:
     exit(0);                                  // ESC
   case 'v':
     changeView(); 
+    break;
+  case 'o':
+    changeCurrentObject();
     break;
   case 'h':
     cout << " ============== H E L P ==============\n\n"
