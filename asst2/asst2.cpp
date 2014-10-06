@@ -344,6 +344,7 @@ static void motion(const int x, const int y) {
   // self-movement flag.
   // 1 = red cube moving itself
   // 2 = blue cube moving itself
+  // 3 = skycamera moving itself 
   // 0 = everything else
   
   int flag = 0; 
@@ -388,11 +389,12 @@ static void motion(const int x, const int y) {
       g_objectRbt[g_currentObj-1] = getTransformation(m, g_objectRbt[g_currentObj - 1], g_auxFrame);
       g_auxFrame = transFact(g_objectRbt[g_currentObj-1]) * linFact(g_auxFrame); 
     } else {
-      if (flag == 3) {
+      if (flag == 3) { // skycamera movement
         g_skyRbt = getTransformation(m, g_skyRbt, g_auxFrame);
         g_currentView = g_skyRbt;
       } 
     }
+    // if one of the cubes is controlling itself as a camera, the view should update.
     if (flag == 1) { 
       g_currentView = g_objectRbt[0];
     } else if (flag == 2) {
