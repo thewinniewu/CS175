@@ -488,7 +488,9 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     << "f\t\tToggle flat shading on/off.\n"
     << "o\t\tCycle object to edit\n"
     << "v\t\tCycle view\n"
-    << "drag left mouse to rotate\n" << endl;
+    << "drag left mouse to rotate\n" 
+    << "drag right mouse to translate left-right or up-down\n"
+    << "drag middle mouse to translate in-out\n" << endl;
     break;
   case 's':
     glFlush();
