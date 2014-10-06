@@ -197,6 +197,7 @@ static shared_ptr<Geometry> g_ground, g_cube;
 
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
 static Matrix4 g_skyRbt = Matrix4::makeTranslation(Cvec3(0.0, 0.25, 4.0));
+static Matrix4 g_worldSkyRbt = transFact(Matrix4()) * linFact(g_skyRbt);
 static Matrix4 g_currentView = g_skyRbt;
 static Matrix4 g_objectRbt[CUBES] = {Matrix4::makeTranslation(Cvec3(-1,0,0)), Matrix4::makeTranslation(Cvec3(1,0,0))}; 
 static Cvec3f g_objectColors[CUBES] = {Cvec3f(1, 0, 0), Cvec3f(0, 0, 1)};
@@ -340,10 +341,19 @@ static void motion(const int x, const int y) {
 
   Matrix4 m;
   if (g_mouseLClickButton && !g_mouseRClickButton && !g_spaceDown) { // left button down?
-    m = Matrix4::makeXRotation(-dy) * Matrix4::makeYRotation(dx);
+    if (mequals(g_currentView, g_skyRbt)) {
+      m = Matrix4::makeXRotation(dy) * Matrix4::makeYRotation(-dx);
+    } else { 
+      m = Matrix4::makeXRotation(-dy) * Matrix4::makeYRotation(dx);
+    }
   }
   else if (g_mouseRClickButton && !g_mouseLClickButton) { // right button down?
-    m = Matrix4::makeTranslation(Cvec3(dx, dy, 0) * 0.01);
+    if (mequals(g_auxFrame, g_worldSkyRbt)) {
+      cout << "you're translating world sky frame\n"; 
+      m = Matrix4::makeTranslation(Cvec3(-dx, -dy, 0) * 0.01);   
+    } else { 
+      m = Matrix4::makeTranslation(Cvec3(dx, dy, 0) * 0.01);
+    } 
   }
   else if (g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown) ) {  // middle or (left and right, or left + space) button down?
     m = Matrix4::makeTranslation(Cvec3(0, 0, -dy) * 0.01);
@@ -352,8 +362,16 @@ static void motion(const int x, const int y) {
   if (g_mouseClickDown) {
     if (g_currentObj > 0) {
       g_objectRbt[g_currentObj-1] = getTransformation(m, g_objectRbt[g_currentObj - 1], g_auxFrame);
+      g_auxFrame = transFact(g_objectRbt[g_currentObj-1]) * linFact(g_auxFrame); 
     } else {
-     //TODO 
+    // sky sky fram
+       if (mequals(g_auxFrame, g_skyRbt)) {
+          cout << "you released mouse button in sky sky \n";
+      } else if (mequals(g_auxFrame, g_worldSkyRbt)) {
+      cout << "you released the mouse button in world sky\n";
+      } 
+      g_skyRbt = getTransformation(m, g_skyRbt, g_auxFrame);
+      g_currentView = g_skyRbt;  
     } 
     glutPostRedisplay(); // we always redraw if we changed the scene
   }
@@ -388,26 +406,38 @@ static void keyboardUp(const unsigned char key, const int x, const int y) {
 }
 
 static void changeView() {
-    cout << "The current view is:";
-    if (mequals(g_currentView,g_skyRbt)) {
-      g_currentView = g_objectRbt[0]; 
-      drawStuff();
-      cout << "g_objectRbt[0]. You are the red cube.\n"; 
-    } else if (mequals(g_currentView,g_objectRbt[0])) {
-      g_currentView = g_objectRbt[1]; 
-      drawStuff();
-      cout << "g_objectRbt[1]. You are the blue cube.\n"; 
-    } else {
-      g_currentView = g_skyRbt;
-      drawStuff();
-      cout << "g_skyRbt. You are omniscient.\n"; 
-    }  
+  cout << "The current view is:";
+  if (mequals(g_currentView,g_skyRbt)) {
+    g_currentView = g_objectRbt[0];
+    drawStuff();
+    cout << "g_objectRbt[0]. You are the red cube.\n"; 
+  } else if (mequals(g_currentView,g_objectRbt[0])) {
+    g_currentView = g_objectRbt[1];
+    drawStuff();
+    cout << "g_objectRbt[1]. You are the blue cube.\n"; 
+  } else {
+    g_currentView = g_skyRbt;
+    drawStuff();
+    cout << "g_skyRbt. You are omniscient.\n"; 
+  } 
 }
 
 static void changeCurrentObject() {
   g_currentObj = (g_currentObj + 1) % (CUBES + 1);
   if (g_currentObj > 0) { 
     g_auxFrame = transFact(g_objectRbt[g_currentObj-1]) * linFact(g_currentView);
+  } else {
+    g_auxFrame = g_skyRbt;
+  }
+}
+
+static void changeSkyCameraAux() {
+  if (mequals(g_auxFrame, g_skyRbt)) {
+    cout << "ur now in world sky! \n"; 
+    g_auxFrame = g_worldSkyRbt; 
+  } else {
+    cout << "ur now in sky sky! \n"; 
+    g_auxFrame = g_skyRbt;
   }
 }
 
@@ -420,6 +450,11 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     break;
   case 'o':
     changeCurrentObject();
+    break;
+  case 'm':
+    if (mequals(g_currentView, g_skyRbt)) {
+      changeSkyCameraAux();
+    } 
     break;
   case 'h':
     cout << " ============== H E L P ==============\n\n"
