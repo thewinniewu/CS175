@@ -22,6 +22,7 @@
 #   include <GL/glut.h>
 #endif
 
+#include "rigtform.h"
 #include "cvec.h"
 #include "matrix4.h"
 #include "geometrymaker.h"
@@ -191,7 +192,7 @@ struct Geometry {
 
 
 // Vertex buffer and index buffer associated with the ground and cube geometry
-static shared_ptr<Geometry> g_ground, g_cube;
+static shared_ptr<Geometry> g_ground, g_cube, g_sphere;
 
 // --------- Scene
 
@@ -202,7 +203,6 @@ static Matrix4 g_currentView = g_skyRbt;
 static Matrix4 g_objectRbt[CUBES] = {Matrix4::makeTranslation(Cvec3(-1,0,0)), Matrix4::makeTranslation(Cvec3(1,0,0))}; 
 static Cvec3f g_objectColors[CUBES] = {Cvec3f(1, 0, 0), Cvec3f(0, 0, 1)};
 
-
 /* Keeps track of current object we are manipulating.
  * 'o' changes the current object.
  * 0 = sky camera
@@ -212,10 +212,34 @@ static Cvec3f g_objectColors[CUBES] = {Cvec3f(1, 0, 0), Cvec3f(0, 0, 1)};
 static int g_currentObj = 1; 
 static Matrix4 g_auxFrame = transFact(g_objectRbt[0]) * linFact(g_currentView); 
 
+static const Cvec3 g_arcballColor = Cvec3(0,0,0);
+static double g_arcballScale = 1.0;
+static double g_arcballScreenRadius = 1.0;
+static Matrix4 g_arcballOrigin = g_auxFrame;
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
+// some helpful functions
+static int getCurrentView() {
+  if (mequals(g_currentView,g_skyRbt)) {
+    return 0;
+  } 
+  if (mequals(g_currentView, g_objectRbt[0])) {
+    return 1;
+  }
+  if (mequals(g_currentView, g_objectRbt[1])) {
+    return 2;
+  }
+}
 
+static bool isWorldSkyManip() {
+  return mequals(g_auxFrame, g_worldSkyRbt);
+}
 
+static bool selfCubeManip() {
+  return (g_currentObj > 0 && getCurrentView() == g_currentObj);
+}
+
+// end helpful functions
 
 static void initGround() {
   // A x-z plane at y = g_groundY of dimension [-g_groundSize, g_groundSize]^2
@@ -240,6 +264,24 @@ static void initCubes() {
 
   makeCube(1, vtx.begin(), idx.begin());
   g_cube.reset(new Geometry(&vtx[0], &idx[0], vbLen, ibLen));
+}
+
+static void initSphere() {
+  int ibLen, vbLen, slices, stacks;
+  //signature: makeSphere(float radius, int slices, int stacks, VtxOutIter vtxIter, IdxOutIter idxIter) { 
+  slices = 10;
+  stacks = 10; 
+  
+  getSphereVbIbLen(slices, stacks, vbLen, ibLen);
+
+  vector<VertexPN> vtx(vbLen);
+  vector<unsigned short> idx(ibLen);
+
+  makeSphere(1, slices, stacks, vtx.begin(), idx.begin()); 
+
+  g_sphere.reset(new Geometry(&vtx[0], &idx[0], vbLen, ibLen)); 
+
+
 }
 
 // takes a projection matrix and send to the the shaders
@@ -313,6 +355,31 @@ static void drawStuff() {
     g_cube->draw(curSS);
   }
 
+  
+  // draw sphere
+  // ===============
+  
+  if (getCurrentView() == 0 && isWorldSkyManip()) { 
+      g_arcballOrigin = inv(Matrix4()); //inv(RigTForm());
+  } else if (getCurrentView() > 0 && !selfCubeManip) {
+    g_arcballOrigin = g_objectRbt[g_currentObj - 1];
+  }
+  
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+ 
+  // compute MVM & NMVM
+  Matrix4 scale = Matrix4::makeScale(g_arcballScale * g_arcballScreenRadius);
+  MVM = invEyeRbt * /* rigTFormToMatrix(*/ g_arcballOrigin * scale;
+  NMVM = normalMatrix(MVM);
+  // send in MVM and NMVM
+  sendModelViewNormalMatrix(curSS, MVM, NMVM);
+  // send uColor
+  safe_glUniform3f(curSS.h_uColor, g_arcballColor[0], g_arcballColor[1], g_arcballColor[3]); 
+  //draw 
+  g_sphere->draw(curSS);
+
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); 
+
 }
 
 static void display() {
@@ -374,7 +441,19 @@ static void motion(const int x, const int y) {
     } 
   }
   else if (g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown) ) {  // middle or (left and right, or left + space) button down?
-    if (g_currentObj == 0 && mequals(g_auxFrame, g_worldSkyRbt)) {
+  
+
+// TODO needs rigid bodies to do this
+  //
+/*   g_arcballScale = getScreenToEyeScale(
+      (inv(g_currentView) * g_arcballOrigin).getTranslation()[2], 
+      g_frustFovY,
+      g_windowHeight
+    );
+  }
+  */    
+
+   if (g_currentObj == 0 && mequals(g_auxFrame, g_worldSkyRbt)) {
       m = Matrix4::makeTranslation(Cvec3(0,0,dy) * 0.01);
     } else { 
       m = Matrix4::makeTranslation(Cvec3(0, 0, -dy) * 0.01);
@@ -553,6 +632,7 @@ static void initShaders() {
 static void initGeometry() {
   initGround();
   initCubes();
+  initSphere();
 }
 
 int main(int argc, char * argv[]) {

@@ -75,7 +75,7 @@ inline RigTForm linFact(const RigTForm& tform) {
 
 inline Matrix4 rigTFormToMatrix(const RigTForm& tform) {
   // m = TR 
-  Matrix4 m = (Matrix4::MakeTranslation(tform.getTranslation()) 
+  Matrix4 m = (Matrix4::makeTranslation(tform.getTranslation()) 
        * quatToMatrix(tform.getRotation())); 
   return m;
 }
