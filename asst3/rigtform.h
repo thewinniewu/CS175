@@ -80,4 +80,8 @@ inline Matrix4 rigTFormToMatrix(const RigTForm& tform) {
   return m;
 }
 
+inline RigTForm getRbtTransformation(const RigTForm& Q, const RigTForm& O, const RigTForm& A) {
+	return A * Q * inv(A) * O;
+}
+
 #endif

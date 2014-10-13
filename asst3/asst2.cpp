@@ -28,6 +28,7 @@
 #include "geometrymaker.h"
 #include "ppm.h"
 #include "glsupport.h"
+#include "rigtform.h"
 
 #define CUBES 2
 
@@ -197,11 +198,18 @@ static shared_ptr<Geometry> g_ground, g_cube, g_sphere;
 // --------- Scene
 
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
+/*
 static Matrix4 g_skyRbt = Matrix4::makeTranslation(Cvec3(0.0, 0.25, 4.0));
 static Matrix4 g_worldSkyRbt = transFact(Matrix4()) * linFact(g_skyRbt);
 static Matrix4 g_currentView = g_skyRbt;
 static Matrix4 g_objectRbt[CUBES] = {Matrix4::makeTranslation(Cvec3(-1,0,0)), Matrix4::makeTranslation(Cvec3(1,0,0))}; 
+*/
 static Cvec3f g_objectColors[CUBES] = {Cvec3f(1, 0, 0), Cvec3f(0, 0, 1)};
+
+static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
+static RigTForm g_worldSkyRbt = RigTForm(linFact(g_skyRbt));
+static RigTForm g_currentView = g_skyRbt;
+static RigTForm g_objectRbt[CUBES] = {RigTForm(Cvec3(-1,0,0)), RigTForm(Cvec3(1,0,0))};
 
 /* Keeps track of current object we are manipulating.
  * 'o' changes the current object.
@@ -210,7 +218,8 @@ static Cvec3f g_objectColors[CUBES] = {Cvec3f(1, 0, 0), Cvec3f(0, 0, 1)};
  * 2 = blue cube
  * */
 static int g_currentObj = 1; 
-static Matrix4 g_auxFrame = transFact(g_objectRbt[0]) * linFact(g_currentView); 
+//static Matrix4 g_auxFrame = transFact(g_objectRbt[0]) * linFact(g_currentView); 
+static RigTForm g_auxFrame = transFact(g_objectRbt[0]) * linFact(g_currentView);
 
 static const Cvec3 g_arcballColor = Cvec3(0,0,0);
 static double g_arcballScale = 1.0;
@@ -326,8 +335,10 @@ static void drawStuff() {
   sendProjectionMatrix(curSS, projmat);
 
   // use the skyRbt as the eyeRbt
-  const Matrix4 eyeRbt = g_currentView;
-  const Matrix4 invEyeRbt = inv(eyeRbt);
+  //const Matrix4 eyeRbt = g_currentView;
+  //const Matrix4 invEyeRbt = inv(eyeRbt);
+  const RigTForm eyeRbt = g_currentView;
+  const RigTForm invEyeRbt = inv(eyeRbt);
 
   const Cvec3 eyeLight1 = Cvec3(invEyeRbt * Cvec4(g_light1, 1)); // g_light1 position in eye coordinates
   const Cvec3 eyeLight2 = Cvec3(invEyeRbt * Cvec4(g_light2, 1)); // g_light2 position in eye coordinates
@@ -338,7 +349,7 @@ static void drawStuff() {
   // ===========
   //
   const Matrix4 groundRbt = Matrix4();  // identity
-  Matrix4 MVM = invEyeRbt * groundRbt;
+  Matrix4 MVM = rigTFormToMatrix(invEyeRbt) * groundRbt;
   Matrix4 NMVM = normalMatrix(MVM);
   sendModelViewNormalMatrix(curSS, MVM, NMVM);
   safe_glUniform3f(curSS.h_uColor, 0.1, 0.95, 0.1); // set color
@@ -348,7 +359,7 @@ static void drawStuff() {
   // ==========
   
   for (int i = 0; i < CUBES; i++) {
-    MVM = invEyeRbt * g_objectRbt[i];
+	MVM = rigTFormToMatrix(invEyeRbt * g_objectRbt[i]);
     NMVM = normalMatrix(MVM);
     sendModelViewNormalMatrix(curSS, MVM, NMVM);
     safe_glUniform3f(curSS.h_uColor, g_objectColors[i][0], g_objectColors[i][1], g_objectColors[i][2]);
@@ -406,7 +417,7 @@ static void motion(const int x, const int y) {
   const double dx = x - g_mouseClickX;
   const double dy = g_windowHeight - y - 1 - g_mouseClickY;
 
-  Matrix4 m;
+  RigTForm m = RigTForm();
     
   // self-movement flag.
   // 1 = red cube moving itself
@@ -415,26 +426,33 @@ static void motion(const int x, const int y) {
   // 0 = everything else
   
   int flag = 0; 
-  if (g_currentObj == 1 && mequals(g_currentView, g_objectRbt[0])) {
+  if (g_currentObj == 1 && mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[0]))) {
     flag = 1;
-  } else if (g_currentObj == 2 && mequals(g_currentView, g_objectRbt[1])) { 
+  } else if (g_currentObj == 2 && mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[1]))) { 
     flag = 2;
-  } else if (g_currentObj == 0 && mequals(g_currentView, g_skyRbt)) {
+  }
+  else if (g_currentObj == 0 && mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_skyRbt))) {
     flag = 3;
   }
   
   if (g_mouseLClickButton && !g_mouseRClickButton && !g_spaceDown) { // left button down?
     if (g_currentObj == 0 || (flag == 1) || (flag == 2)) { 
-      m = Matrix4::makeXRotation(dy) * Matrix4::makeYRotation(-dx);
-    } else { 
-      m = Matrix4::makeXRotation(-dy) * Matrix4::makeYRotation(dx);
+      //m = Matrix4::makeXRotation(dy) * Matrix4::makeYRotation(-dx);
+	  //m.setRotation(m.getRotation() * Quat(0, 0, dy, 0) * Quat(0, dx, 0, 0));
+	  m.setRotation(m.getRotation().makeXRotation(dy) * m.getRotation().makeYRotation(-dx));
+	} else { 
+      // m = Matrix4::makeXRotation(-dy) * Matrix4::makeYRotation(dx);
+	  //m.setRotation(m.getRotation() * Quat(0, 0, dy, 0) * Quat(0, dx, 0, 0));
+	  m.setRotation(m.getRotation().makeXRotation(-dy) * m.getRotation().makeYRotation(dx));
     }
   }
   else if (g_mouseRClickButton && !g_mouseLClickButton) { // right button down?
-    if (g_currentObj == 0 && mequals(g_auxFrame, g_worldSkyRbt)) {
-      m = Matrix4::makeTranslation(Cvec3(-dx, -dy, 0) * 0.01); 
+	  if (g_currentObj == 0 && mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))) {
+      //m = Matrix4::makeTranslation(Cvec3(-dx, -dy, 0) * 0.01); 
+      m.setTranslation(m.getTranslation() + Cvec3(-dx,-dy,0) * 0.01);
     } else { 
-      m = Matrix4::makeTranslation(Cvec3(dx, dy, 0) * 0.01);
+      //m = Matrix4::makeTranslation(Cvec3(dx, dy, 0) * 0.01);
+	  m.setTranslation(m.getTranslation() + Cvec3(dx, dy, 0) *0.01);
     }
     if (flag == 1 || flag == 2) {
       g_auxFrame = g_currentView;    
@@ -453,11 +471,14 @@ static void motion(const int x, const int y) {
   }
   */    
 
-   if (g_currentObj == 0 && mequals(g_auxFrame, g_worldSkyRbt)) {
-      m = Matrix4::makeTranslation(Cvec3(0,0,dy) * 0.01);
+	  if (g_currentObj == 0 && mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))) {
+      //m = Matrix4::makeTranslation(Cvec3(0,0,dy) * 0.01);
+	  m.setTranslation(m.getTranslation() + Cvec3(0,0,dy) *0.01);
     } else { 
-      m = Matrix4::makeTranslation(Cvec3(0, 0, -dy) * 0.01);
-    }
+      // 
+      //m = Matrix4::makeTranslation(Cvec3(0, 0, -dy) * 0.01);
+	  m.setTranslation(m.getTranslation() + Cvec3(0, 0, -dy)*0.01);
+	}
     if (flag == 1 || flag == 2) {
       g_auxFrame = g_currentView;    
     } 
@@ -465,11 +486,11 @@ static void motion(const int x, const int y) {
 
   if (g_mouseClickDown) {
     if (g_currentObj > 0) {
-      g_objectRbt[g_currentObj-1] = getTransformation(m, g_objectRbt[g_currentObj - 1], g_auxFrame);
+		g_objectRbt[g_currentObj - 1] = getRbtTransformation(m, g_objectRbt[g_currentObj - 1], g_auxFrame);
       g_auxFrame = transFact(g_objectRbt[g_currentObj-1]) * linFact(g_auxFrame); 
     } else {
       if (flag == 3) { // skycamera movement
-        g_skyRbt = getTransformation(m, g_skyRbt, g_auxFrame);
+		  g_skyRbt = getRbtTransformation(m, g_skyRbt, g_auxFrame);
         g_currentView = g_skyRbt;
       } 
     }
@@ -513,11 +534,12 @@ static void keyboardUp(const unsigned char key, const int x, const int y) {
 
 static void changeView() {
   cout << "The current view is:";
-  if (mequals(g_currentView,g_skyRbt)) {
+  if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_skyRbt))) {
     g_currentView = g_objectRbt[0];
     drawStuff();
     cout << "g_objectRbt[0]. You are the red cube.\n"; 
-  } else if (mequals(g_currentView,g_objectRbt[0])) {
+  }
+  else if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[0]))) {
     g_currentView = g_objectRbt[1];
     drawStuff();
     cout << "g_objectRbt[1]. You are the blue cube.\n"; 
@@ -538,7 +560,7 @@ static void changeCurrentObject() {
 }
 
 static void changeSkyCameraAux() {
-  if (mequals(g_auxFrame, g_worldSkyRbt)) {
+	if (mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))) {
     g_auxFrame = g_skyRbt; 
   } else {
     g_auxFrame = g_worldSkyRbt;
