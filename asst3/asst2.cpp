@@ -224,24 +224,24 @@ static RigTForm g_auxFrame = transFact(g_objectRbt[0]) * linFact(g_currentView);
 static const Cvec3 g_arcballColor = Cvec3(0,0,0);
 static double g_arcballScale = 1.0;
 static double g_arcballScreenRadius = 1.0;
-static Matrix4 g_arcballOrigin = g_auxFrame;
+static RigTForm g_arcballOrigin = g_auxFrame;
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
 // some helpful functions
 static int getCurrentView() {
-  if (mequals(g_currentView,g_skyRbt)) {
+  if (mequals(rigTFormToMatrix(g_currentView),rigTFormToMatrix(g_skyRbt))) {
     return 0;
   } 
-  if (mequals(g_currentView, g_objectRbt[0])) {
+  if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[0]))) {
     return 1;
   }
-  if (mequals(g_currentView, g_objectRbt[1])) {
+  if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[1]))) {
     return 2;
   }
 }
 
 static bool isWorldSkyManip() {
-  return mequals(g_auxFrame, g_worldSkyRbt);
+  return mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt));
 }
 
 static bool selfCubeManip() {
@@ -370,17 +370,24 @@ static void drawStuff() {
   // draw sphere
   // ===============
   
-  if (getCurrentView() == 0 && isWorldSkyManip()) { 
-      g_arcballOrigin = inv(Matrix4()); //inv(RigTForm());
-  } else if (getCurrentView() > 0 && !selfCubeManip) {
-    g_arcballOrigin = g_objectRbt[g_currentObj - 1];
-  }
-  
+  if (getCurrentView() == 0) {
+    if (isWorldSkyManip()) { 
+      g_arcballOrigin = inv(RigTForm());
+    } else if (g_currentObj > 0) {
+      g_arcballOrigin = g_objectRbt[g_currentObj - 1];
+    }
+  } else {
+    if (!selfCubeManip && g_currentObj > 0) {
+      g_arcballOrigin = g_objectRbt[g_currentObj - 1];
+    cout << "hi";  
+    } 
+  } 
+ 
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
  
   // compute MVM & NMVM
   Matrix4 scale = Matrix4::makeScale(g_arcballScale * g_arcballScreenRadius);
-  MVM = invEyeRbt * /* rigTFormToMatrix(*/ g_arcballOrigin * scale;
+  MVM = rigTFormToMatrix(invEyeRbt * g_arcballOrigin) * scale;
   NMVM = normalMatrix(MVM);
   // send in MVM and NMVM
   sendModelViewNormalMatrix(curSS, MVM, NMVM);
