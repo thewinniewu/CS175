@@ -225,6 +225,9 @@ static const Cvec3 g_arcballColor = Cvec3(0,0,0);
 static double g_arcballScale = 1.0;
 static double g_arcballScreenRadius = 1.0;
 static RigTForm g_arcballOrigin = g_auxFrame;
+
+static bool g_isWorldSky = false;
+
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
 // some helpful functions
@@ -240,26 +243,14 @@ static int getCurrentView() {
   return 0;
 }
 
-static bool isWorldSkyManip() {
-  cout << "g_auxFrame\n" ;
-  printMatrix(rigTFormToMatrix(g_auxFrame));
-  cout << "g_worldSkyRbt\n";
-  printMatrix(rigTFormToMatrix(g_worldSkyRbt));
-  cout << "view " << getCurrentView() << " obj = " << g_currentObj; 
-  return mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))
-          && (getCurrentView() == 0)
-          && (g_currentObj == 0);
-}
-
 static bool selfCubeManip() {
   return (g_currentObj > 0 && (getCurrentView() == g_currentObj));
 }
 
 static bool useArcball() {
   int cView = getCurrentView();
-  cout << "use arcball\n"; 
   return ((cView == 0 && g_currentObj > 0) 
-          || (cView == 0 && isWorldSkyManip())
+          || (cView == 0 && g_isWorldSky)
           || (cView > 0 && cView != g_currentObj)); 
   
 }
@@ -345,7 +336,7 @@ static Matrix4 makeProjectionMatrix() {
 static void setWrtFrame() {
   if (g_currentObj == 0) {
     if (getCurrentView() == 0) {
-      if (isWorldSkyManip()) {
+      if (g_isWorldSky) {
         g_auxFrame = linFact(g_skyRbt);
       } else {
         g_auxFrame = g_skyRbt;
@@ -407,29 +398,19 @@ static void drawStuff() {
   // ===============
    
   if (g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown) ) {  // middle or (left and right, or left + space) button down?
-     g_arcballScale = getScreenToEyeScale(
-      (invEyeRbt * g_arcballOrigin).getTranslation()[2], 
-      g_frustFovY,
-      g_windowHeight
-    );
-  }
+       }
 
   if (getCurrentView() == 0) {
-    if (isWorldSkyManip()) { 
+    if (g_isWorldSky) { 
       g_arcballOrigin = inv(RigTForm());
-      cout << "world sky \n";
-    } else {
-      g_arcballOrigin = eyeRbt;
-      /*
     } else if (g_currentObj > 0) {
       g_arcballOrigin = g_objectRbt[g_currentObj - 1];
-      cout << "sky view with cube \n"; 
-   */ }
+    }
   } else {
-   // if (!selfCubeManip() && g_currentObj > 0) {
+    if (!selfCubeManip() && g_currentObj > 0) {
       g_arcballOrigin = g_objectRbt[g_currentObj - 1];
-   //   cout << "another cube\n"; 
-  } 
+    }
+  }
  
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
   cout << g_arcballScale << "," << g_arcballScreenRadius;
@@ -487,8 +468,7 @@ static RigTForm getArcballTransform(const int x, const int y) {
  
   Cvec2 arcballScreenPos;
   
-  if (isWorldSkyManip()) {
-    cout << "meep1\n";
+  if (g_isWorldSky) {
     arcballScreenPos = Cvec2((g_windowWidth - 1)/2.0, (g_windowHeight - 1)/2.0);
   } else {
     arcballScreenPos = getScreenSpaceCoord(
@@ -517,7 +497,7 @@ static RigTForm getArcballTransform(const int x, const int y) {
     getZCoord(after[0], after[1], g_arcballScreenRadius)
   ));
 
-  if (isWorldSkyManip()) {
+  if (g_isWorldSky) {
     cout << "meeeppp\n";
     return RigTForm(Quat(0, (v1 * -1.0)) * Quat(0, v2));
   } else {
@@ -526,58 +506,6 @@ static RigTForm getArcballTransform(const int x, const int y) {
 
 }
 
-
-/*  if (g_mouseLClickButton && !g_mouseRClickButton && !g_spaceDown) { // left button down?
-    // rotation
-    const Matrix4 proj = makeProjectionMatrix();
-  
-   
-    // obj origin in screen coords 
-    Cvec2 arcballOrigPos = getScreenSpaceCoord(
-      arcballPos, 
-      proj,
-      g_frustNear,
-      g_frustFovY, 
-      g_windowWidth,
-      g_windowHeight
-    );
-   
-   double scale = getScreenToEyeScale(
-      (inv(g_currentView) * obj).getTranslation()[2],
-      g_frustFovY,
-      g_windowHeight
-    );
-    
-    double pixelRad = 1 / scale;
-      
-    double zOnSphereBefore = getZCoord(arcballPos[0], arcballPos[1], mouseX, mouseY, pixelRad); 
-    double zOnSphereAfter = getZCoord(arcballPos[0], arcballPos[1], x, y, pixelRad); 
-    cout << "z before" << zOnSphereBefore << "\n";
-    cout  << "z after" << zOnSphereAfter << "\n"; 
-    Cvec3 before = Cvec3(scale * x, scale * y, zOnSphereBefore);
-    Cvec3 after = Cvec3(scale * mouseX, scale * mouseY, zOnSphereAfter);
-
-    cout << "before\n" <<  "," << before[0] <<  "," << before[1] <<  "," << before[2] << "\n";
-    cout << "after\n" <<  "," << after[0] <<  "," << after[1] <<  "," << after[2] << "\n";
-
-    Quat unnormal = Quat(dot(before, after), cross(before,after));
-    cout << "not normalized\n" << unnormal[0]<<  "," << unnormal[1] <<  "," << unnormal[2] <<  "," << unnormal[3] << "\n";
-
- 
-    Quat transform = normalize(Quat(dot(before, after), cross(before,after))); 
-    cout << "transform\n" << transform[0] <<  "," << transform[1] <<  "," << transform[2] << "," << transform[3] << "\n"; 
-    return RigTForm(transform); 
-  } else if (g_mouseRClickButton && !g_mouseLClickButton) { // right button down?
-    
-
-
-  } else if (g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown) ) {  // middle or (left and right, or left + space) button down?
-    
-
-
-  }              
-}
-*/
 static void motion(const int x, const int y) {
 
   if (getCurrentView() > 0 && g_currentObj == 0) {
@@ -608,7 +536,7 @@ static void motion(const int x, const int y) {
   double tFactor = 0.01; // translation factor 
   
   if (useArcball()) {
-    tFactor = g_arcballScale; 
+    tFactor = g_arcballScale * 0.08; 
   }
   
   if (g_mouseLClickButton && !g_mouseRClickButton && !g_spaceDown) { // left button down?
@@ -625,22 +553,23 @@ static void motion(const int x, const int y) {
       m.setTranslation(m.getTranslation() + Cvec3(-dx,-dy,0) * tFactor);
     } else { 
       m.setTranslation(m.getTranslation() + Cvec3(dx, dy, 0) * tFactor);
-    }
-    if (flag == 1 || flag == 2) {
-      g_auxFrame = g_currentView;    
     } 
   }
+  
   else if (g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown)) {  // middle or (left and right, or left + space) button down?
     if (g_currentObj == 0 && mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))) {
       m.setTranslation(m.getTranslation() + Cvec3(0,0,dy) * tFactor);
     } else { 
       m.setTranslation(m.getTranslation() + Cvec3(0, 0, -dy) * tFactor);
     }
-    if (flag == 1 || flag == 2) {
-      g_auxFrame = g_currentView;    
-    }
+    
+    g_arcballScale = getScreenToEyeScale(
+      (inv(g_currentView) * g_arcballOrigin).getTranslation()[2], 
+      g_frustFovY,
+      g_windowHeight
+    ) * 108;
   }
-
+  
   if (g_mouseClickDown) {
     m = g_auxFrame * m * inv(g_auxFrame);
 
@@ -653,19 +582,10 @@ static void motion(const int x, const int y) {
   }
           
           
- /*   if (g_currentObj > 0) {
-      m = g_auxFrame * m * inv(g_auxFrame); 
-      g_objectRbt[g_currentObj - 1] = getRbtTransformation(m, g_objectRbt[g_currentObj - 1], g_auxFrame);
-      g_auxFrame = transFact(g_objectRbt[g_currentObj-1]) * linFact(g_auxFrame); 
-    } else {*/
-
-  if (flag == 3) { // skycamera movement
-      g_skyRbt = getRbtTransformation(m, g_skyRbt, g_auxFrame);
-     // g_skyRbt = getRbtTransformation(tform, g_skyRbt, g_auxFrame);
+     if (flag == 3) { // skycamera movement
         g_currentView = g_skyRbt;
       } 
-   // }
-    // if one of the cubes is controlling itself as a camera, the view should update.
+    
     if (flag == 1) { 
       g_currentView = g_objectRbt[0];
     } else if (flag == 2) {
@@ -706,6 +626,7 @@ static void keyboardUp(const unsigned char key, const int x, const int y) {
 }
 
 static void changeView() {
+  g_isWorldSky = false;
   cout << "The current view is:";
   if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_skyRbt))) {
     g_currentView = g_objectRbt[0];
@@ -734,9 +655,11 @@ static void changeCurrentObject() {
 
 static void changeSkyCameraAux() {
 	if (mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))) {
-    g_auxFrame = g_skyRbt; 
+    g_auxFrame = g_skyRbt;
+    g_isWorldSky = false;
   } else {
     g_auxFrame = g_worldSkyRbt;
+    g_isWorldSky = true; 
   }
 }
 
