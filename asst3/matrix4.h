@@ -278,7 +278,7 @@ inline Matrix4 normalMatrix(const Matrix4& m) {
   return transpose(invm);
 }
 
-inline Matrix4 printMatrix(const Matrix4& m) {
+inline void printMatrix(const Matrix4& m) {
   for (int i = 0; i < 4; i++) {
     for (int j = 0; j < 4; j++) {
       std::cout << "[" << m(i,j) << "]";

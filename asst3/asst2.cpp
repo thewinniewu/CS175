@@ -198,12 +198,6 @@ static shared_ptr<Geometry> g_ground, g_cube, g_sphere;
 // --------- Scene
 
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
-/*
-static Matrix4 g_skyRbt = Matrix4::makeTranslation(Cvec3(0.0, 0.25, 4.0));
-static Matrix4 g_worldSkyRbt = transFact(Matrix4()) * linFact(g_skyRbt);
-static Matrix4 g_currentView = g_skyRbt;
-static Matrix4 g_objectRbt[CUBES] = {Matrix4::makeTranslation(Cvec3(-1,0,0)), Matrix4::makeTranslation(Cvec3(1,0,0))}; 
-*/
 static Cvec3f g_objectColors[CUBES] = {Cvec3f(1, 0, 0), Cvec3f(0, 0, 1)};
 
 static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
@@ -218,7 +212,6 @@ static RigTForm g_objectRbt[CUBES] = {RigTForm(Cvec3(-1,0,0)), RigTForm(Cvec3(1,
  * 2 = blue cube
  * */
 static int g_currentObj = 1; 
-//static Matrix4 g_auxFrame = transFact(g_objectRbt[0]) * linFact(g_currentView); 
 static RigTForm g_auxFrame = transFact(g_objectRbt[0]) * linFact(g_currentView);
 
 static const Cvec3 g_arcballColor = Cvec3(0,0,0);
@@ -234,8 +227,7 @@ static bool g_isWorldSky = false;
 static int getCurrentView() {
   if (mequals(rigTFormToMatrix(g_currentView),rigTFormToMatrix(g_skyRbt))) {
     return 0;
-  } 
-  else if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[0]))) {
+  } else if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[0]))) {
     return 1;
   } else if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[1]))){
     return 2;
@@ -362,8 +354,6 @@ static void drawStuff() {
   sendProjectionMatrix(curSS, projmat);
 
   // use the skyRbt as the eyeRbt
-  //const Matrix4 eyeRbt = g_currentView;
-  //const Matrix4 invEyeRbt = inv(eyeRbt);
   const RigTForm eyeRbt = g_currentView;
   const RigTForm invEyeRbt = inv(eyeRbt);
 
@@ -413,7 +403,6 @@ static void drawStuff() {
 	else {
 		if (getCurrentView() == 1) {
 			g_arcballOrigin = g_objectRbt[0];
-			cout << getCurrentView();
 		}
 		else if (getCurrentView() == 2) {
 			g_arcballOrigin = g_objectRbt[1];
@@ -422,7 +411,6 @@ static void drawStuff() {
   }
  
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-  cout << g_arcballScale << "," << g_arcballScreenRadius;
   // compute MVM & NMVM
   Matrix4 scale = Matrix4::makeScale(g_arcballScale * g_arcballScreenRadius * 0.008);
   MVM = rigTFormToMatrix(invEyeRbt * g_arcballOrigin) * scale;
@@ -507,7 +495,6 @@ static RigTForm getArcballTransform(const int x, const int y) {
   ));
 
   if (g_isWorldSky) {
-    cout << "meeeppp\n";
     return RigTForm(Quat(0, (v1 * -1.0)) * Quat(0, v2));
   } else {
     return RigTForm(Quat(0, v2) * Quat(0, (v1 * -1.0)));
@@ -655,21 +642,16 @@ static void changeView() {
 
 static void changeCurrentObject() {
   g_currentObj = (g_currentObj + 1) % (CUBES + 1);
-  if (g_currentObj > 0) { 
-    g_auxFrame = transFact(g_objectRbt[g_currentObj-1]) * linFact(g_currentView);
-  } else {
-    g_auxFrame = g_skyRbt;
-  }
+  setWrtFrame(); 
 }
 
 static void changeSkyCameraAux() {
-	if (mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))) {
-    g_auxFrame = g_skyRbt;
+	if (g_isWorldSky) { 
     g_isWorldSky = false;
   } else {
-    g_auxFrame = g_worldSkyRbt;
     g_isWorldSky = true; 
   }
+  setWrtFrame();
 }
 
 static void keyboard(const unsigned char key, const int x, const int y) {
