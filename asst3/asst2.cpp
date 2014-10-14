@@ -410,6 +410,15 @@ static void drawStuff() {
     if (g_currentObj > 0) {
       g_arcballOrigin = g_objectRbt[g_currentObj - 1];
 	} 
+	else {
+		if (getCurrentView() == 1) {
+			g_arcballOrigin = g_objectRbt[0];
+			cout << getCurrentView();
+		}
+		else if (getCurrentView() == 2) {
+			g_arcballOrigin = g_objectRbt[1];
+		}
+	}
   }
  
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
