@@ -22,7 +22,7 @@
 #   include <GL/glut.h>
 #endif
 
-#include "rigtform.h"
+#include "arcball.h"
 #include "cvec.h"
 #include "matrix4.h"
 #include "geometrymaker.h"
@@ -248,6 +248,12 @@ static bool selfCubeManip() {
   return (g_currentObj > 0 && getCurrentView() == g_currentObj);
 }
 
+static bool useArcball() {
+  int cView = getCurrentView();
+  return ((cView == 0 && g_currentObj > 0) 
+          || (cView > 0 && cView != g_currentObj)); 
+}
+
 // end helpful functions
 
 static void initGround() {
@@ -369,7 +375,6 @@ static void drawStuff() {
   
   // draw sphere
   // ===============
-  
   if (getCurrentView() == 0) {
     if (isWorldSkyManip()) { 
       g_arcballOrigin = inv(RigTForm());
@@ -377,6 +382,7 @@ static void drawStuff() {
       g_arcballOrigin = g_objectRbt[g_currentObj - 1];
     }
   } else {
+    //TODO this doesnt work 
     if (!selfCubeManip && g_currentObj > 0) {
       g_arcballOrigin = g_objectRbt[g_currentObj - 1];
     cout << "hi";  
@@ -420,10 +426,78 @@ static void reshape(const int w, const int h) {
   glutPostRedisplay();
 }
 
-static void motion(const int x, const int y) {
-  const double dx = x - g_mouseClickX;
-  const double dy = g_windowHeight - y - 1 - g_mouseClickY;
+static RigTForm getCurrentObj() {
+  if (g_currentObj == 0) {
+      return g_skyRbt;
+  } else {
+     return g_objectRbt[g_currentObj - 1];
+}
+}
 
+static double getZCoord(double x, double y, int pixX, int pixY, int pixRad) {
+  return pow(abs(pixRad*pixRad - pow((y - pixY), 2) - pow((x - pixX),2)), 0.5);
+}
+
+
+static RigTForm getArcballTransform(const int mouseX, const int mouseY, const int x, const int y) {
+  RigTForm obj = getCurrentObj(); 
+
+  if (g_mouseLClickButton && !g_mouseRClickButton && !g_spaceDown) { // left button down?
+    // rotation
+    const Matrix4 proj = makeProjectionMatrix();
+  
+    Cvec3 arcballPos = (inv(g_currentView) * getCurrentObj()).getTranslation(); 
+   
+    // obj origin in screen coords 
+    Cvec2 arcballOrigPos = getScreenSpaceCoord(
+      arcballPos, 
+      proj,
+      g_frustNear,
+      g_frustFovY, 
+      g_windowWidth,
+      g_windowHeight
+    );
+   
+   double scale = getScreenToEyeScale(
+      (inv(g_currentView) * obj).getTranslation()[2],
+      g_frustFovY,
+      g_windowHeight
+    );
+    
+    double pixelRad = 1 / scale;
+      
+    double zOnSphereBefore = getZCoord(arcballPos[0], arcballPos[1], mouseX, mouseY, pixelRad); 
+    double zOnSphereAfter = getZCoord(arcballPos[0], arcballPos[1], x, y, pixelRad); 
+    cout << "z before" << zOnSphereBefore << "\n";
+    cout  << "z after" << zOnSphereAfter << "\n"; 
+    Cvec3 before = Cvec3(scale * x, scale * y, zOnSphereBefore);
+    Cvec3 after = Cvec3(scale * mouseX, scale * mouseY, zOnSphereAfter);
+
+    cout << "before\n" <<  "," << before[0] <<  "," << before[1] <<  "," << before[2] << "\n";
+    cout << "after\n" <<  "," << after[0] <<  "," << after[1] <<  "," << after[2] << "\n";
+
+    Quat unnormal = Quat(dot(before, after), cross(before,after));
+    cout << "not normalized\n" << unnormal[0]<<  "," << unnormal[1] <<  "," << unnormal[2] <<  "," << unnormal[3] << "\n";
+
+ 
+    Quat transform = normalize(Quat(dot(before, after), cross(before,after))); 
+    cout << "transform\n" << transform[0] <<  "," << transform[1] <<  "," << transform[2] << "," << transform[3] << "\n"; 
+    return RigTForm(transform); 
+  } else if (g_mouseRClickButton && !g_mouseLClickButton) { // right button down?
+    
+
+
+  } else if (g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown) ) {  // middle or (left and right, or left + space) button down?
+    
+
+
+  }              
+}
+
+static void motion(const int x, const int y) {
+  double dx = x - g_mouseClickX;
+  double dy = g_windowHeight - y - 1 - g_mouseClickY;
+  cout << "MOUSECLICKS" << g_mouseClickX << "," << g_mouseClickY << "\n\n"; 
   RigTForm m = RigTForm();
     
   // self-movement flag.
@@ -441,51 +515,49 @@ static void motion(const int x, const int y) {
   else if (g_currentObj == 0 && mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_skyRbt))) {
     flag = 3;
   }
+  RigTForm tform; 
+  if (useArcball()) {
+    tform = getArcballTransform(g_mouseClickX, g_mouseClickY, x, y); 
+   }
   
   if (g_mouseLClickButton && !g_mouseRClickButton && !g_spaceDown) { // left button down?
     if (g_currentObj == 0 || (flag == 1) || (flag == 2)) { 
       //m = Matrix4::makeXRotation(dy) * Matrix4::makeYRotation(-dx);
-	  //m.setRotation(m.getRotation() * Quat(0, 0, dy, 0) * Quat(0, dx, 0, 0));
-	  m.setRotation(m.getRotation().makeXRotation(dy) * m.getRotation().makeYRotation(-dx));
-	} else { 
+      //m.setRotation(m.getRotation() * Quat(0, 0, dy, 0) * Quat(0, dx, 0, 0));
+      m.setRotation(m.getRotation().makeXRotation(dy) * m.getRotation().makeYRotation(-dx));
+  } else { 
       // m = Matrix4::makeXRotation(-dy) * Matrix4::makeYRotation(dx);
-	  //m.setRotation(m.getRotation() * Quat(0, 0, dy, 0) * Quat(0, dx, 0, 0));
-	  m.setRotation(m.getRotation().makeXRotation(-dy) * m.getRotation().makeYRotation(dx));
+      //m.setRotation(m.getRotation() * Quat(0, 0, dy, 0) * Quat(0, dx, 0, 0));
+      m.setRotation(m.getRotation().makeXRotation(-dy) * m.getRotation().makeYRotation(dx));
     }
   }
   else if (g_mouseRClickButton && !g_mouseLClickButton) { // right button down?
-	  if (g_currentObj == 0 && mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))) {
+    if (g_currentObj == 0 && mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))) {
       //m = Matrix4::makeTranslation(Cvec3(-dx, -dy, 0) * 0.01); 
       m.setTranslation(m.getTranslation() + Cvec3(-dx,-dy,0) * 0.01);
     } else { 
       //m = Matrix4::makeTranslation(Cvec3(dx, dy, 0) * 0.01);
-	  m.setTranslation(m.getTranslation() + Cvec3(dx, dy, 0) *0.01);
+    m.setTranslation(m.getTranslation() + Cvec3(dx, dy, 0) *0.01);
     }
     if (flag == 1 || flag == 2) {
       g_auxFrame = g_currentView;    
     } 
   }
   else if (g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown) ) {  // middle or (left and right, or left + space) button down?
-  
-
-// TODO needs rigid bodies to do this
-  //
-/*   g_arcballScale = getScreenToEyeScale(
+     g_arcballScale = 100 * getScreenToEyeScale(
       (inv(g_currentView) * g_arcballOrigin).getTranslation()[2], 
       g_frustFovY,
       g_windowHeight
     );
-  }
-  */    
 
-	  if (g_currentObj == 0 && mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))) {
+    if (g_currentObj == 0 && mequals(rigTFormToMatrix(g_auxFrame), rigTFormToMatrix(g_worldSkyRbt))) {
       //m = Matrix4::makeTranslation(Cvec3(0,0,dy) * 0.01);
-	  m.setTranslation(m.getTranslation() + Cvec3(0,0,dy) *0.01);
+    m.setTranslation(m.getTranslation() + Cvec3(0,0,dy) *0.01);
     } else { 
       // 
       //m = Matrix4::makeTranslation(Cvec3(0, 0, -dy) * 0.01);
-	  m.setTranslation(m.getTranslation() + Cvec3(0, 0, -dy)*0.01);
-	}
+    m.setTranslation(m.getTranslation() + Cvec3(0, 0, -dy)*0.01);
+  }
     if (flag == 1 || flag == 2) {
       g_auxFrame = g_currentView;    
     } 
@@ -493,11 +565,16 @@ static void motion(const int x, const int y) {
 
   if (g_mouseClickDown) {
     if (g_currentObj > 0) {
-		g_objectRbt[g_currentObj - 1] = getRbtTransformation(m, g_objectRbt[g_currentObj - 1], g_auxFrame);
+      if (useArcball()) {
+        g_objectRbt[g_currentObj - 1] = getRbtTransformation(tform, g_objectRbt[g_currentObj - 1], g_auxFrame); 
+     } else {
+       g_objectRbt[g_currentObj - 1] = getRbtTransformation(m, g_objectRbt[g_currentObj - 1], g_auxFrame);
+     } 
       g_auxFrame = transFact(g_objectRbt[g_currentObj-1]) * linFact(g_auxFrame); 
     } else {
       if (flag == 3) { // skycamera movement
-		  g_skyRbt = getRbtTransformation(m, g_skyRbt, g_auxFrame);
+      //g_skyRbt = getRbtTransformation(m, g_skyRbt, g_auxFrame);
+      g_skyRbt = getRbtTransformation(tform, g_skyRbt, g_auxFrame);
         g_currentView = g_skyRbt;
       } 
     }
@@ -507,7 +584,7 @@ static void motion(const int x, const int y) {
     } else if (flag == 2) {
       g_currentView = g_objectRbt[1];
     }
- 
+  
     glutPostRedisplay(); // we always redraw if we changed the scene
   }
   g_mouseClickX = x;
@@ -528,6 +605,8 @@ static void mouse(const int button, const int state, const int x, const int y) {
   g_mouseMClickButton &= !(button == GLUT_MIDDLE_BUTTON && state == GLUT_UP);
 
   g_mouseClickDown = g_mouseLClickButton || g_mouseRClickButton || g_mouseMClickButton;
+
+  glutPostRedisplay();
 }
 
 static void keyboardUp(const unsigned char key, const int x, const int y) {
