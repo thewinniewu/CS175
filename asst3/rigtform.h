@@ -55,6 +55,7 @@ public:
       r_ * a.getRotation()
     );
   }
+
 };
 
 inline RigTForm inv(const RigTForm& tform) {

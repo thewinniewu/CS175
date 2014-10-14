@@ -403,13 +403,13 @@ static void drawStuff() {
   if (getCurrentView() == 0) {
     if (g_isWorldSky) { 
       g_arcballOrigin = inv(RigTForm());
-    } else if (g_currentObj > 0) {
+    } else {
       g_arcballOrigin = g_objectRbt[g_currentObj - 1];
     }
   } else {
-    if (!selfCubeManip() && g_currentObj > 0) {
+    if (g_currentObj > 0) {
       g_arcballOrigin = g_objectRbt[g_currentObj - 1];
-    }
+	} 
   }
  
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -536,7 +536,7 @@ static void motion(const int x, const int y) {
   double tFactor = 0.01; // translation factor 
   
   if (useArcball()) {
-    tFactor = g_arcballScale * 0.08; 
+    tFactor = g_arcballScale * 0.008; 
   }
   
   if (g_mouseLClickButton && !g_mouseRClickButton && !g_spaceDown) { // left button down?
