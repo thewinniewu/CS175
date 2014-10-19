@@ -213,6 +213,7 @@ static double g_arcballScreenRadius = 1.0;
 static RigTForm g_arcballOrigin = g_auxFrame;
 
 static bool g_isWorldSky = false;
+static bool g_pickerMode = false;
 
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
@@ -398,10 +399,11 @@ static void display() {
   glUseProgram(g_shaderStates[g_activeShader]->program);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);                   // clear framebuffer color&depth
 
-  drawStuff(*g_shaderStates[g_activeShader], false);
+  drawStuff(*g_shaderStates[g_activeShader], g_pickerMode);
 
-  glutSwapBuffers();                                    // show the back buffer (where we rendered stuff)
-
+  if (!g_pickerMode) {
+    glutSwapBuffers();                                    // show the back buffer (where we rendered stuff)
+  }
   checkGlErrors();
 }
 
@@ -469,6 +471,31 @@ static RigTForm getArcballTransform(const int x, const int y) {
   }
 
 }
+
+static void pick() {
+  // We need to set the clear color to black, for pick rendering.
+  // so, let's save the clear color.
+  GLdouble clearColor[4];
+  glGetDoublev(GL_COLOR_CLEAR_VALUE, clearColor);
+
+  glClearColor(0, 0, 0, 0);
+
+  //using PICKING_SADER as the shader
+  glUseProgram(g_shaderStates[PICKING_SHADER]->program);
+
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  drawStuff(*g_shaderStates[PICKING_SHADER], true);
+
+  // Uncomment below and comment out the gludPostRedisplay in mouse(...) callback
+  // to see result of the pick rendering pass
+  // glutSwapBuffers();
+  
+  // Now set back the clear color
+  glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+
+  checkGlErrors();
+}
+
 
 static void motion(const int x, const int y) {
 
@@ -578,6 +605,11 @@ static void mouse(const int button, const int state, const int x, const int y) {
 
   g_mouseClickDown = g_mouseLClickButton || g_mouseRClickButton || g_mouseMClickButton;
 
+  if (g_pickerMode && g_mouseLClickButton && !g_mouseRClickButton) {
+    pick();
+    g_pickerMode = false;
+  }
+  
   glutPostRedisplay();
 }
 
@@ -635,6 +667,10 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     if (g_currentObj == 0) {
       changeSkyCameraAux();
     } 
+    break;
+  case 'p':
+    g_pickerMode = !g_pickerMode;
+    cout << "Picking mode: " << g_pickerMode << "\n";
     break;
   case 'h':
     cout << " ============== H E L P ==============\n\n"
