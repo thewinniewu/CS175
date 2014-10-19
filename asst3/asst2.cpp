@@ -31,6 +31,9 @@
 #include "rigtform.h"
 
 #define CUBES 2
+#define SKYCAMERA 0
+#define REDCUBE 1
+#define BLUECUBE 2
 
 using namespace std;      // for string, vector, iostream, and other standard C++ stuff
 using namespace tr1; // for shared_ptr
@@ -202,7 +205,14 @@ static Cvec3f g_objectColors[CUBES] = {Cvec3f(1, 0, 0), Cvec3f(0, 0, 1)};
 
 static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
 static RigTForm g_worldSkyRbt = RigTForm(linFact(g_skyRbt));
-static RigTForm g_currentView = g_skyRbt;
+
+/* Keeps track of current object we are using
+ * as the camera. 'v' changes the view.
+ * 0 = sky camera
+ * 1 = red cube
+ * 2 = blue cube
+ */
+static int g_currentCamera = SKYCAMERA;
 static RigTForm g_objectRbt[CUBES] = {RigTForm(Cvec3(-1,0,0)), RigTForm(Cvec3(1,0,0))};
 
 /* Keeps track of current object we are manipulating.
@@ -211,8 +221,8 @@ static RigTForm g_objectRbt[CUBES] = {RigTForm(Cvec3(-1,0,0)), RigTForm(Cvec3(1,
  * 1 = red cube
  * 2 = blue cube
  * */
-static int g_currentObj = 1; 
-static RigTForm g_auxFrame = transFact(g_objectRbt[0]) * linFact(g_currentView);
+static int g_currentObj = REDCUBE; 
+static RigTForm g_auxFrame = transFact(g_objectRbt[0]) * linFact(g_skyRbt);
 
 static const Cvec3 g_arcballColor = Cvec3(0,0,0);
 static double g_arcballScale = 1.0;
@@ -224,26 +234,20 @@ static bool g_isWorldSky = false;
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
 // some helpful functions
-static int getCurrentView() {
-  if (mequals(rigTFormToMatrix(g_currentView),rigTFormToMatrix(g_skyRbt))) {
-    return 0;
-  } else if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[0]))) {
-    return 1;
-  } else if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[1]))){
-    return 2;
-  }
-  return 0;
+static RigTForm getCurrentView() {
+  return (g_currentCamera == SKYCAMERA) ? 
+          g_skyRbt 
+          : g_objectRbt[g_currentCamera - 1];
 }
 
 static bool selfCubeManip() {
-  return (g_currentObj > 0 && (getCurrentView() == g_currentObj));
+  return (g_currentObj > 0 && g_currentCamera == g_currentObj);
 }
 
 static bool useArcball() {
-  int cView = getCurrentView();
-  return ((cView == 0 && g_currentObj > 0) 
-          || (cView == 0 && g_isWorldSky)
-          || (cView > 0 && cView != g_currentObj)); 
+  return ((g_currentCamera == SKYCAMERA && g_currentObj > 0) 
+          || (g_currentCamera == SKYCAMERA && g_isWorldSky)
+          || (g_currentCamera != SKYCAMERA && g_currentCamera != g_currentObj)); 
   
 }
 
@@ -326,8 +330,8 @@ static Matrix4 makeProjectionMatrix() {
 }
 
 static void setWrtFrame() {
-  if (g_currentObj == 0) {
-    if (getCurrentView() == 0) {
+  if (g_currentObj == SKYCAMERA) {
+    if (g_currentCamera == SKYCAMERA) {
       if (g_isWorldSky) {
         g_auxFrame = linFact(g_skyRbt);
       } else {
@@ -335,10 +339,10 @@ static void setWrtFrame() {
       }
     }
   } else {
-    if (getCurrentView() == 0) {
+    if (g_currentCamera == SKYCAMERA) {
      g_auxFrame = transFact(g_objectRbt[g_currentObj - 1]) * linFact(g_skyRbt);
     } else {
-     g_auxFrame = transFact(g_objectRbt[g_currentObj - 1]) * linFact(g_currentView);
+     g_auxFrame = transFact(g_objectRbt[g_currentObj - 1]) * linFact(getCurrentView());
     }
   }
 }
@@ -354,7 +358,7 @@ static void drawStuff() {
   sendProjectionMatrix(curSS, projmat);
 
   // use the skyRbt as the eyeRbt
-  const RigTForm eyeRbt = g_currentView;
+  const RigTForm eyeRbt = getCurrentView();
   const RigTForm invEyeRbt = inv(eyeRbt);
 
   const Cvec3 eyeLight1 = Cvec3(invEyeRbt * Cvec4(g_light1, 1)); // g_light1 position in eye coordinates
@@ -390,24 +394,18 @@ static void drawStuff() {
   if (g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown) ) {  // middle or (left and right, or left + space) button down?
        }
 
-  if (getCurrentView() == 0) {
+  if (g_currentCamera == SKYCAMERA) {
     if (g_isWorldSky) { 
       g_arcballOrigin = inv(RigTForm());
     } else {
       g_arcballOrigin = g_objectRbt[g_currentObj - 1];
     }
   } else {
-    if (g_currentObj > 0) {
+    if (g_currentObj != SKYCAMERA) {
       g_arcballOrigin = g_objectRbt[g_currentObj - 1];
-	} 
-	else {
-		if (getCurrentView() == 1) {
-			g_arcballOrigin = g_objectRbt[0];
-		}
-		else if (getCurrentView() == 2) {
-			g_arcballOrigin = g_objectRbt[1];
-		}
-	}
+	  } else {
+      g_arcballOrigin = g_objectRbt[g_currentCamera - 1];
+	  }
   }
  
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -469,7 +467,7 @@ static RigTForm getArcballTransform(const int x, const int y) {
     arcballScreenPos = Cvec2((g_windowWidth - 1)/2.0, (g_windowHeight - 1)/2.0);
   } else {
     arcballScreenPos = getScreenSpaceCoord(
-      (inv(g_currentView) * obj).getTranslation(), 
+      (inv(getCurrentView()) * obj).getTranslation(), 
       makeProjectionMatrix(),
       g_frustNear,
       g_frustFovY, 
@@ -504,7 +502,7 @@ static RigTForm getArcballTransform(const int x, const int y) {
 
 static void motion(const int x, const int y) {
 
-  if (getCurrentView() > 0 && g_currentObj == 0) {
+  if (g_currentCamera != SKYCAMERA && g_currentObj == SKYCAMERA) {
     return;
   }
 
@@ -520,14 +518,15 @@ static void motion(const int x, const int y) {
   // 0 = everything else
    
 
-  int flag = 0; 
-  if (g_currentObj == 1 && mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[0]))) {
-    flag = 1;
-  } else if (g_currentObj == 2 && mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[1]))) { 
-    flag = 2;
-  }
-  else if (g_currentObj == 0 && mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_skyRbt))) {
-    flag = 3;
+  int flag = 0;
+  if (g_currentObj == g_currentCamera) {
+    if (g_currentObj == REDCUBE) {
+      flag = 1;
+    } else if (g_currentObj == BLUECUBE) { 
+      flag = 2;
+    } else if (g_currentObj == SKYCAMERA) {
+      flag = 3;
+    }
   }
   double tFactor = 0.01; // translation factor 
   
@@ -560,7 +559,7 @@ static void motion(const int x, const int y) {
     }
     
     g_arcballScale = getScreenToEyeScale(
-      (inv(g_currentView) * g_arcballOrigin).getTranslation()[2], 
+      (inv(getCurrentView()) * g_arcballOrigin).getTranslation()[2], 
       g_frustFovY,
       g_windowHeight
     ) * 108;
@@ -579,13 +578,13 @@ static void motion(const int x, const int y) {
           
           
      if (flag == 3) { // skycamera movement
-        g_currentView = g_skyRbt;
+        g_currentCamera = SKYCAMERA;
       } 
     
     if (flag == 1) { 
-      g_currentView = g_objectRbt[0];
+      g_currentCamera = REDCUBE;
     } else if (flag == 2) {
-      g_currentView = g_objectRbt[1];
+      g_currentCamera = BLUECUBE;
     }
   
   glutPostRedisplay(); // we always redraw if we changed the scene
@@ -622,19 +621,21 @@ static void keyboardUp(const unsigned char key, const int x, const int y) {
 }
 
 static void changeView() {
+   
+        
   g_isWorldSky = false;
   cout << "The current view is:";
-  if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_skyRbt))) {
-    g_currentView = g_objectRbt[0];
+  if (g_currentCamera == SKYCAMERA) {
+    g_currentCamera = REDCUBE;
     drawStuff();
     cout << "g_objectRbt[0]. You are the red cube.\n"; 
   }
-  else if (mequals(rigTFormToMatrix(g_currentView), rigTFormToMatrix(g_objectRbt[0]))) {
-    g_currentView = g_objectRbt[1];
+  else if (g_currentCamera == REDCUBE) {
+    g_currentCamera = BLUECUBE;
     drawStuff();
     cout << "g_objectRbt[1]. You are the blue cube.\n"; 
   } else {
-    g_currentView = g_skyRbt;
+    g_currentCamera = SKYCAMERA;
     drawStuff();
     cout << "g_skyRbt. You are omniscient.\n"; 
   }
