@@ -240,7 +240,7 @@ static bool g_pickerMode = false;
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
 
-static shared_ptr<SgRbtNode> getNodeForEye(int i) {
+static shared_ptr<SgRbtNode> getNodeForEye(ObjId i) {
    switch (i) { 
     case SKY:
       return g_skyNode;
@@ -249,11 +249,7 @@ static shared_ptr<SgRbtNode> getNodeForEye(int i) {
     case OBJECT1:
       return g_robot2Node;
   }
-
 }
-
-
-
 
 static void initGround() {
   // A x-z plane at y = g_groundY of dimension [-g_groundSize, g_groundSize]^2
@@ -361,20 +357,28 @@ static bool shouldUseArcball() {
 // The translation part of the aux frame either comes from the current
 // active object, or is the identity matrix when
 static RigTForm getArcballRbt() {
-  switch (getManipMode()) {
+  if (g_currentPickedRbtNode) 
+     return getPathAccumRbt(g_world, g_currentPickedRbtNode);
+  else
+     return RigTForm();
+ /*switch (getManipMode()) {
   case ARCBALL_ON_PICKED:
-    return getPathAccumRbt(g_world, g_currentPickedRbtNode); //getRbtFromObjId(g_activeObject);
+    cout << "hello1"; 
+    return (g_currentPickedRbtNode->getRbt());
+    //return getPathAccumRbt(g_world, g_currentPickedRbtNode); //getRbtFromObjId(g_activeObject);
   case ARCBALL_ON_SKY:
+    cout << "hello2"; 
     return RigTForm();
   case EGO_MOTION:
+    cout << "hello3"; 
     return getPathAccumRbt(g_world, getNodeForEye(g_activeEye)); //getRbtFromObjId(g_activeEye);
   default:
     throw runtime_error("Invalid ManipMode");
-  }
+  }*/
 }
 
 static void updateArcballScale() {
-  RigTForm arcballEye = inv(getRbtFromObjId(g_activeEye)) * getArcballRbt();
+  RigTForm arcballEye = inv(getNodeForEye(g_activeEye)->getRbt()) * getArcballRbt();
   double depth = arcballEye.getTranslation()[2];
   if (depth > -CS175_EPS)
     g_arcballScale = 0.02;
@@ -386,7 +390,7 @@ static void drawArcBall(const ShaderState& curSS) {
   // switch to wire frame mode
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-  RigTForm arcballEye = inv(getRbtFromObjId(g_activeEye)) * getArcballRbt();
+  RigTForm arcballEye = inv(getNodeForEye(g_activeEye)->getRbt()) * getArcballRbt();
   Matrix4 MVM = rigTFormToMatrix(arcballEye) * Matrix4::makeScale(Cvec3(1,1,1)* g_arcballScale * g_arcballScreenRadius);
   sendModelViewNormalMatrix(curSS, MVM, normalMatrix(MVM));
 
@@ -501,7 +505,7 @@ static Cvec3 getArcballDirection(const Cvec2& p, const double r) {
 
 static RigTForm moveArcball(const Cvec2& p0, const Cvec2& p1) {
   const Matrix4 projMatrix = makeProjectionMatrix();
-  const RigTForm eyeInverse = inv(getRbtFromObjId(g_activeEye));
+  const RigTForm eyeInverse = inv(getNodeForEye(g_activeEye)->getRbt());
   cout << g_currentPickedRbtNode; 
   const Cvec3 arcballCenter = getArcballRbt().getTranslation();
   const Cvec3 arcballCenter_ec = Cvec3(eyeInverse * Cvec4(arcballCenter, 1));
@@ -597,7 +601,11 @@ static void motion(const int x, const int y) {
   RigTForm A;
   // the matrix for the auxiliary frame (the w.r.t.)
   if (g_activeEye == SKY) {
-     A = linFact(getRbtFromObjId(g_activeEye));
+    cout << "meepmeepmeep";
+    if (g_currentPickedRbtNode)
+      A = transFact(g_currentPickedRbtNode->getRbt()) * linFact(g_skyNode->getRbt()); 
+    else
+      A = linFact(g_skyNode->getRbt());
   } else {
      RigTForm obj = getPathAccumRbt(g_world, g_currentPickedRbtNode, 0);
      RigTForm parent = getPathAccumRbt(g_world, g_currentPickedRbtNode, 1);
@@ -606,7 +614,8 @@ static void motion(const int x, const int y) {
   }
  
   if (g_currentPickedRbtNode) {
-    RigTForm O = doMtoOwrtA(M, g_currentPickedRbtNode->getRbt(), A);
+    //RigTForm O = doMtoOwrtA(M, g_currentPickedRbtNode->getRbt(), A);
+    RigTForm O = A * M * inv(A) * (g_currentPickedRbtNode->getRbt()); 
     g_currentPickedRbtNode->setRbt(O);   
   } else {
     shared_ptr<SgRbtNode> eyeNode = getNodeForEye(g_activeEye);
@@ -702,7 +711,7 @@ static void initGlutState(int argc, char * argv[]) {
   glutInitDisplayMode(GLUT_RGBA|GLUT_DOUBLE|GLUT_DEPTH);  //  RGBA pixel channels and double buffering
 #endif
   glutInitWindowSize(g_windowWidth, g_windowHeight);      // create a window
-  glutCreateWindow("Assignment 3");                       // title the window
+  glutCreateWindow("Assignment 4");                       // title the window
  
   glutIgnoreKeyRepeat(true);                              // avoids repeated keyboard calls when holding space to emulate middle mouse
 
