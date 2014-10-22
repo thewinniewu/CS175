@@ -400,8 +400,8 @@ static void drawStuff(const ShaderState& curSS, bool picking) {
   const Matrix4 projmat = makeProjectionMatrix();
   sendProjectionMatrix(curSS, projmat);
 
-  // const RigTForm eyeRbt = getRbtFromObjId(g_activeEye);
-  const RigTForm eyeRbt = getPathAccumRbt(g_world, g_skyNode);
+  const RigTForm eyeRbt = getRbtFromObjId(g_activeEye);
+  //const RigTForm eyeRbt = getPathAccumRbt(g_world, g_skyNode);
   // printf("Eye");
   // printRigTForm(eyeRbt);
   // printf("Eye1");
@@ -459,8 +459,8 @@ static void display() {
   glUseProgram(g_shaderStates[g_activeShader]->program);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);                   // clear framebuffer color&depth
 
-  //drawStuff(*g_shaderStates[g_activeShader], g_pickerMode);
-  drawStuff(*g_shaderStates[g_activeShader], false);
+  drawStuff(*g_shaderStates[g_activeShader], g_pickerMode);
+  //drawStuff(*g_shaderStates[g_activeShader], false);
 
   if (!g_pickerMode) {
 	  glutSwapBuffers();                                    // show the back buffer (where we rendered stuff)

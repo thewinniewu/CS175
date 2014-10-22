@@ -43,11 +43,11 @@ public:
   const RigTForm getAccumulatedRbt(int offsetFromStackTop = 0) {
     // TODO
 	  int index = rbtStack_.size() - offsetFromStackTop;
-	  printf("%i", index);
+	  //printf("%i", index);
 	  RigTForm init = RigTForm();
 	  for (int i = 0; i < index; i++) {
-		  printf("%i", i);
-		  printRigTForm(rbtStack_[i]);
+		//  printf("%i", i);
+		//  printRigTForm(rbtStack_[i]);
 		  init = init * rbtStack_[i];
 	  }
 	  return init;
@@ -55,7 +55,7 @@ public:
 
   virtual bool visit(SgTransformNode& node) {
     // TODO
-	// printRigTForm(node.getRbt());
+//	 printRigTForm(node.getRbt());
 	rbtStack_.push_back(node.getRbt());
 
 	found_ = (target_ != node);
