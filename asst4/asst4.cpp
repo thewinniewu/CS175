@@ -69,7 +69,7 @@ static const float g_frustFar = -50.0;    // far plane
 static const float g_groundY = -2.0;      // y coordinate of the ground
 static const float g_groundSize = 10.0;   // half the ground length
 
-enum ObjId {SKY=0, OBJECT0=1, OBJECT1=2};
+enum ObjId {SKY=0, OBJECT0=1, OBJECT1=2, LIMB = 3};
 enum SkyMode {WORLD_SKY=0, SKY_SKY=1};
 
 static const char * const g_objNames[] = {"Sky", "Object 0", "Object 1"};
@@ -89,45 +89,6 @@ static SkyMode g_activeCameraFrame = WORLD_SKY;
 static bool g_displayArcball = true;
 static double g_arcballScreenRadius = 100; // number of pixels
 static double g_arcballScale = 1;
-
-/*
-struct ShaderState {
-  GlProgram program;
-
-  // Handles to uniform variables
-  GLint h_uLight, h_uLight2;
-  GLint h_uProjMatrix;
-  GLint h_uModelViewMatrix;
-  GLint h_uNormalMatrix;
-  GLint h_uColor;
-
-  // Handles to vertex attributes
-  GLint h_aPosition;
-  GLint h_aNormal;
-
-  ShaderState(const char* vsfn, const char* fsfn) {
-    readAndCompileShader(program, vsfn, fsfn);
-
-    const GLuint h = program; // short hand
-
-    // Retrieve handles to uniform variables
-    h_uLight = safe_glGetUniformLocation(h, "uLight");
-    h_uLight2 = safe_glGetUniformLocation(h, "uLight2");
-    h_uProjMatrix = safe_glGetUniformLocation(h, "uProjMatrix");
-    h_uModelViewMatrix = safe_glGetUniformLocation(h, "uModelViewMatrix");
-    h_uNormalMatrix = safe_glGetUniformLocation(h, "uNormalMatrix");
-    h_uColor = safe_glGetUniformLocation(h, "uColor");
-
-    // Retrieve handles to vertex attributes
-    h_aPosition = safe_glGetAttribLocation(h, "aPosition");
-    h_aNormal = safe_glGetAttribLocation(h, "aNormal");
-
-    if (!g_Gl2Compatible)
-      glBindFragDataLocation(h, 0, "fragColor");
-    checkGlErrors();
-  }
-
-}; */
 
 // asst-snippets
 static const int PICKING_SHADER = 2; // index of the picking shader is g_shaerFiles
@@ -341,17 +302,29 @@ enum ManipMode {
   EGO_MOTION
 };
 
+static ObjId getCurrentObjId() {
+  if (g_currentPickedRbtNode == g_robot1Node)
+    return OBJECT0;
+  else if (g_currentPickedRbtNode == g_robot2Node)
+    return OBJECT1;
+  else if (g_currentPickedRbtNode){
+    return LIMB;
+  } else
+    return SKY;
+}
+
 static ManipMode getManipMode() {
-  if (g_currentPickedRbtNode) {
-      return ARCBALL_ON_PICKED;
+  if (g_currentPickedRbtNode && (g_activeEye != getCurrentObjId())) {
+    return ARCBALL_ON_PICKED;
   } else if (g_activeEye == SKY && g_activeCameraFrame == WORLD_SKY)
-      return ARCBALL_ON_SKY;
-    else
-      return EGO_MOTION;
+    return ARCBALL_ON_SKY;
+  else {
+    return EGO_MOTION;
+  }
 }
 
 static bool shouldUseArcball() {
-  return getManipMode() != EGO_MOTION && (!(g_activeEye != SKY && g_activeObject == SKY));
+  return getManipMode() != EGO_MOTION && (!(g_activeEye != SKY && getCurrentObjId() == SKY));
 }
 
 // The translation part of the aux frame either comes from the current
@@ -361,7 +334,8 @@ static RigTForm getArcballRbt() {
      return getPathAccumRbt(g_world, g_currentPickedRbtNode);
   else
      return RigTForm();
- /*switch (getManipMode()) {
+  /*
+ switch (getManipMode()) {
   case ARCBALL_ON_PICKED:
     cout << "hello1"; 
     return (g_currentPickedRbtNode->getRbt());
@@ -537,7 +511,7 @@ static RigTForm getMRbt(const double dx, const double dy) {
   else {
     double movementScale = getManipMode() == EGO_MOTION ? 0.02 : g_arcballScale;
     if (g_mouseRClickButton && !g_mouseLClickButton) {
-      M = RigTForm(Cvec3(dx, dy, 0) * movementScale);
+       M = RigTForm(Cvec3(dx, dy, 0) * movementScale);
     }
     else if (g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && g_spaceDown)) {
       M = RigTForm(Cvec3(0, 0, -dy) * movementScale);
@@ -590,9 +564,9 @@ static void pick() {
 static void motion(const int x, const int y) {
   if (!g_mouseClickDown)
     return;
-  if (g_activeObject == SKY && g_activeEye != SKY)
+  if (getCurrentObjId() == SKY && g_activeEye != SKY)
     return;                  // we do not edit the eye when viewed from the objects
-
+  cout << "testestestes";
   const double dx = x - g_mouseClickX;
   const double dy = g_windowHeight - y - 1 - g_mouseClickY;
 
@@ -601,12 +575,12 @@ static void motion(const int x, const int y) {
   RigTForm A;
   // the matrix for the auxiliary frame (the w.r.t.)
   if (g_activeEye == SKY) {
-    cout << "meepmeepmeep";
     if (g_currentPickedRbtNode)
       A = transFact(g_currentPickedRbtNode->getRbt()) * linFact(g_skyNode->getRbt()); 
     else
       A = linFact(g_skyNode->getRbt());
   } else {
+     cout << "you are here"; 
      RigTForm obj = getPathAccumRbt(g_world, g_currentPickedRbtNode, 0);
      RigTForm parent = getPathAccumRbt(g_world, g_currentPickedRbtNode, 1);
      RigTForm frame = getPathAccumRbt(g_world, getNodeForEye(g_activeEye), 0);   
@@ -680,7 +654,6 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     g_activeShader ^= 1;
     break;
   case 'v':
-
     g_activeEye = ObjId((g_activeEye+1) % 3);
     cerr << "Active eye is " << g_objNames[g_activeEye] << endl;
     break;
