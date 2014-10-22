@@ -57,8 +57,6 @@ using namespace tr1;
 // loaded
 // ----------------------------------------------------------------------------
 
-// Changed with ass4
-//static const bool g_Gl2Compatible = false;
 const bool g_Gl2Compatible = false;
 
 static const float g_frustMinFov = 60.0;  // A minimal of 60 degree field of view
@@ -82,7 +80,6 @@ static bool g_spaceDown = false;         // space state, for middle mouse emulat
 static int g_mouseClickX, g_mouseClickY; // coordinates for mouse click event
 static int g_activeShader = 0;
 
-static ObjId g_activeObject = SKY;
 static ObjId g_activeEye = SKY;
 static SkyMode g_activeCameraFrame = WORLD_SKY;
 
@@ -209,7 +206,10 @@ static shared_ptr<SgRbtNode> getNodeForEye(ObjId i) {
       return g_robot1Node;
     case OBJECT1:
       return g_robot2Node;
-  }
+    case LIMB:
+      cout << "Shouldn't have this eye ever, something has gone wrong";
+      exit(1); 
+   }
 }
 
 static void initGround() {
@@ -255,31 +255,6 @@ static void sendProjectionMatrix(const ShaderState& curSS, const Matrix4& projMa
   safe_glUniformMatrix4fv(curSS.h_uProjMatrix, glmatrix);
 }
 
-
-// takes MVM and its normal matrix to the shaders
-/*
-static void sendModelViewNormalMatrix(const ShaderState& curSS, const Matrix4& MVM, const Matrix4& NMVM) {
-  GLfloat glmatrix[16];
-  MVM.writeToColumnMajorMatrix(glmatrix); // send MVM
-  safe_glUniformMatrix4fv(curSS.h_uModelViewMatrix, glmatrix);
-
-  NMVM.writeToColumnMajorMatrix(glmatrix); // send NMVM
-  safe_glUniformMatrix4fv(curSS.h_uNormalMatrix, glmatrix);
-}*/
-
-static RigTForm getRbtFromObjId(ObjId objId) {
-	RigTForm robo1 = getPathAccumRbt(g_world, g_robot1Node);
-	RigTForm robo2 = getPathAccumRbt(g_world, g_robot2Node);
-  // RigTForm* rbts[] = {&g_skyRbt, &g_objectRbt[0], &g_objectRbt[1]};
-	RigTForm* rbts[] = { &g_skyRbt, &robo1, &robo2 };
-  return *rbts[objId];
-}
-
-static void setRbtFromObjId(ObjId objId, const RigTForm& rbt) {
-  RigTForm* rbts[] = {&g_skyRbt, &g_objectRbt[0], &g_objectRbt[1]};
-  *rbts[objId] = rbt;
-}
-
 // update g_frustFovY from g_frustMinFov, g_windowWidth, and g_windowHeight
 static void updateFrustFovY() {
   if (g_windowWidth >= g_windowHeight)
@@ -307,9 +282,9 @@ static ObjId getCurrentObjId() {
     return OBJECT0;
   else if (g_currentPickedRbtNode == g_robot2Node)
     return OBJECT1;
-  else if (g_currentPickedRbtNode){
+  else if (g_currentPickedRbtNode)
     return LIMB;
-  } else
+  else
     return SKY;
 }
 
@@ -334,21 +309,6 @@ static RigTForm getArcballRbt() {
      return getPathAccumRbt(g_world, g_currentPickedRbtNode);
   else
      return RigTForm();
-  /*
- switch (getManipMode()) {
-  case ARCBALL_ON_PICKED:
-    cout << "hello1"; 
-    return (g_currentPickedRbtNode->getRbt());
-    //return getPathAccumRbt(g_world, g_currentPickedRbtNode); //getRbtFromObjId(g_activeObject);
-  case ARCBALL_ON_SKY:
-    cout << "hello2"; 
-    return RigTForm();
-  case EGO_MOTION:
-    cout << "hello3"; 
-    return getPathAccumRbt(g_world, getNodeForEye(g_activeEye)); //getRbtFromObjId(g_activeEye);
-  default:
-    throw runtime_error("Invalid ManipMode");
-  }*/
 }
 
 static void updateArcballScale() {
@@ -381,19 +341,11 @@ static void drawStuff(const ShaderState& curSS, bool picking) {
   if (!(g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown)))
     updateArcballScale();
 
-  // short hand for current shader state
-  //const ShaderState& curSS = *g_shaderStates[g_activeShader];
-
   // build & send proj. matrix to vshader
   const Matrix4 projmat = makeProjectionMatrix();
   sendProjectionMatrix(curSS, projmat);
 
-  //const RigTForm eyeRbt = getRbtFromObjId(g_activeEye);
   const RigTForm eyeRbt = getPathAccumRbt(g_world, getNodeForEye(g_activeEye));
-  // printf("Eye");
-  // printRigTForm(eyeRbt);
-  // printf("Eye1");
-  // printRigTForm(eyeRbt1);
   const RigTForm invEyeRbt = inv(eyeRbt);
 
   const Cvec3 eyeLight1 = Cvec3(invEyeRbt * Cvec4(g_light1, 1));
@@ -401,27 +353,6 @@ static void drawStuff(const ShaderState& curSS, bool picking) {
   safe_glUniform3f(curSS.h_uLight, eyeLight1[0], eyeLight1[1], eyeLight1[2]);
   safe_glUniform3f(curSS.h_uLight2, eyeLight2[0], eyeLight2[1], eyeLight2[2]);
 
-  // draw ground
-  // ===========
-  //
-  /*
-  const RigTForm groundRbt = RigTForm();  // identity
-  Matrix4 MVM = rigTFormToMatrix(invEyeRbt * groundRbt);
-  Matrix4 NMVM = normalMatrix(MVM);
-  sendModelViewNormalMatrix(curSS, MVM, NMVM);
-  safe_glUniform3f(curSS.h_uColor, 0.1, 0.95, 0.1); // set color
-  g_ground->draw(curSS);
-  */
-  // draw cubes
-  // ==========
-  /*
-  for (int i = 0; i < 2; ++i) {
-    MVM = rigTFormToMatrix(invEyeRbt * g_objectRbt[i]);
-    NMVM = normalMatrix(MVM);
-    sendModelViewNormalMatrix(curSS, MVM, NMVM);
-    safe_glUniform3f(curSS.h_uColor, g_objectColors[i][0], g_objectColors[i][1], g_objectColors[i][2]);
-    g_cube->draw(curSS);
-  } */
   if (!picking) {
 	  Drawer drawer(invEyeRbt, curSS);
 	  g_world->accept(drawer);
@@ -429,8 +360,7 @@ static void drawStuff(const ShaderState& curSS, bool picking) {
 	  if (g_displayArcball && shouldUseArcball()) {
 		  drawArcBall(curSS);
 	  }
-  }
-  else {
+  } else {
 	  Picker picker(invEyeRbt, curSS);
 	  g_world->accept(picker);
 	  glFlush();
@@ -448,7 +378,6 @@ static void display() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);                   // clear framebuffer color&depth
 
   drawStuff(*g_shaderStates[g_activeShader], g_pickerMode);
-  //drawStuff(*g_shaderStates[g_activeShader], false);
 
   if (!g_pickerMode) {
 	  glutSwapBuffers();                                    // show the back buffer (where we rendered stuff)
@@ -480,7 +409,6 @@ static Cvec3 getArcballDirection(const Cvec2& p, const double r) {
 static RigTForm moveArcball(const Cvec2& p0, const Cvec2& p1) {
   const Matrix4 projMatrix = makeProjectionMatrix();
   const RigTForm eyeInverse = inv(getNodeForEye(g_activeEye)->getRbt());
-  cout << g_currentPickedRbtNode; 
   const Cvec3 arcballCenter = getArcballRbt().getTranslation();
   const Cvec3 arcballCenter_ec = Cvec3(eyeInverse * Cvec4(arcballCenter, 1));
 
@@ -566,7 +494,6 @@ static void motion(const int x, const int y) {
     return;
   if (getCurrentObjId() == SKY && g_activeEye != SKY)
     return;                  // we do not edit the eye when viewed from the objects
-  cout << "testestestes";
   const double dx = x - g_mouseClickX;
   const double dy = g_windowHeight - y - 1 - g_mouseClickY;
 
@@ -580,7 +507,6 @@ static void motion(const int x, const int y) {
     else
       A = linFact(g_skyNode->getRbt());
   } else {
-     cout << "you are here"; 
      RigTForm obj = getPathAccumRbt(g_world, g_currentPickedRbtNode, 0);
      RigTForm parent = getPathAccumRbt(g_world, g_currentPickedRbtNode, 1);
      RigTForm frame = getPathAccumRbt(g_world, getNodeForEye(g_activeEye), 0);   
@@ -588,12 +514,12 @@ static void motion(const int x, const int y) {
   }
  
   if (g_currentPickedRbtNode) {
-    //RigTForm O = doMtoOwrtA(M, g_currentPickedRbtNode->getRbt(), A);
-    RigTForm O = A * M * inv(A) * (g_currentPickedRbtNode->getRbt()); 
+    RigTForm O = doMtoOwrtA(M, g_currentPickedRbtNode->getRbt(), A);
     g_currentPickedRbtNode->setRbt(O);   
   } else {
     shared_ptr<SgRbtNode> eyeNode = getNodeForEye(g_activeEye);
-    eyeNode->setRbt(A * M * inv(A) * eyeNode->getRbt());
+    RigTForm O = doMtoOwrtA(M, eyeNode->getRbt(), A); 
+    eyeNode->setRbt(O); 
   }
 
   g_mouseClickX += dx;
@@ -642,9 +568,10 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     << "h\t\thelp menu\n"
     << "s\t\tsave screenshot\n"
     << "f\t\tToggle flat shading on/off.\n"
-    << "o\t\tCycle object to edit\n"
+    << "p\t\tEnter picker mode\n"
     << "v\t\tCycle view\n"
-    << "drag left mouse to rotate\n" << endl;
+    << "drag left mouse to rotate\n"
+    << "drag right or middle mouse to translate\n" << endl;
     break;
   case 's':
     glFlush();
@@ -656,10 +583,6 @@ static void keyboard(const unsigned char key, const int x, const int y) {
   case 'v':
     g_activeEye = ObjId((g_activeEye+1) % 3);
     cerr << "Active eye is " << g_objNames[g_activeEye] << endl;
-    break;
-  case 'o':
-    g_activeObject = ObjId((g_activeObject+1) % 3);
-    cerr << "Active object is " << g_objNames[g_activeObject] << endl;
     break;
   case 'm':
     g_activeCameraFrame = SkyMode((g_activeCameraFrame+1) % 2);
