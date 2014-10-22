@@ -3,8 +3,6 @@
 
 #include <cassert>
 #include <cmath>
-#include <iostream>
-using namespace std;
 
 #include "cvec.h"
 
@@ -123,6 +121,7 @@ public:
     }
     return r;
   }
+
 
   static Matrix4 makeXRotation(const double ang) {
     return makeXRotation(std::cos(ang * CS175_PI/180), std::sin(ang * CS175_PI/180));
@@ -278,50 +277,34 @@ inline Matrix4 normalMatrix(const Matrix4& m) {
   return transpose(invm);
 }
 
-inline void printMatrix(const Matrix4& m) {
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      std::cout << "[" << m(i,j) << "]";
-    }
-  std::cout << "\n";
-  }
-}
-
 inline Matrix4 transFact(const Matrix4& m) {
-  // TODO
-  Matrix4 new_m;
-  for (int i = 0; i < 3; i++) {
-    new_m(i,3) = m(i,3);
-  } 
-  return new_m;
-}
-
-inline Matrix4 linFact(const Matrix4& m) {   
-  // TODO
-  Matrix4 new_m;
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      new_m(i,j) = m(i,j);
-    }
+  assert(isAffine(m));
+  Matrix4 r; // gets an identity
+  for (int i = 0; i < 3; ++i) {
+    r(i,3) = m(i,3);
   }
-  return new_m;
+  return r;
 }
 
-inline bool mequals(const Matrix4& m1, const Matrix4& m2) {
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      if (m1(i,j) != m2(i,j)) {
-        return false;
-      }
-    }
+inline void printMatrix(const Matrix4& m) {
+	for (int i = 0; i < 4; ++i) {
+		printf("[");
+		for (int j = 0; j < 4; ++j) {
+			printf("%.2f, ", m[i,j]);
+		}
+		printf("]\n");
+	}
+	printf("\n");
+}
+
+inline Matrix4 linFact(const Matrix4& m) {
+  assert(isAffine(m));
+  Matrix4 r(m); // make a copy of m
+  for (int i = 0; i < 3; ++i) {
+    r(i,3) = 0;
   }
-  return true;
+  return r;
 }
-
-inline Matrix4 getTransformation (const Matrix4& Q, const Matrix4& O, const Matrix4& A) {
-  return A * Q * inv(A) * O;
-}
-
 
 
 #endif

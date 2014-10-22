@@ -27,6 +27,7 @@ public:
 
   virtual bool visit(SgShapeNode& shapeNode) {
     const Matrix4 MVM = rigTFormToMatrix(rbtStack_.back()) * shapeNode.getAffineMatrix();
+	// printMatrix(MVM);
     sendModelViewNormalMatrix(curSS_, MVM, normalMatrix(MVM));
     shapeNode.draw(curSS_);
     return true;

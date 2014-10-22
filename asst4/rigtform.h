@@ -16,16 +16,9 @@ public:
     assert(norm2(Quat(1,0,0,0) - r_) < CS175_EPS2);
   }
 
-  RigTForm(const Cvec3& t, const Quat& r) : t_(t), r_(r) {
-    // put an assert here like above?
-  }
-
-  explicit RigTForm(const Cvec3& t) : t_(t) {
-    assert(norm2(Quat(1,0,0,0) - r_) < CS175_EPS2); 
-  }
-
-  explicit RigTForm(const Quat& r) : t_(0), r_(r) { 
-  }
+  RigTForm(const Cvec3& t, const Quat& r) : t_(t), r_(r)  {}
+  explicit RigTForm(const Cvec3& t) : t_(t), r_()                  {}    // only set translation part (rotation is identity)
+  explicit RigTForm(const Quat& r) : t_(0), r_(r)                  {}    // only set rotation part (translation is 0)
 
   Cvec3 getTranslation() const {
     return t_;
@@ -46,24 +39,17 @@ public:
   }
 
   Cvec4 operator * (const Cvec4& a) const {
-    return Cvec4(t_, 0) * a[3] + r_ * a;
+    return Cvec4(t_, 0.0) * a[3] + r_ * a;
   }
 
   RigTForm operator * (const RigTForm& a) const {
-    return RigTForm(
-      t_ + Cvec3(r_ * Cvec4(a.getTranslation(), 0)),
-      r_ * a.getRotation()
-    );
+    return RigTForm(t_ + Cvec3(r_ * Cvec4(a.t_, 0)), r_*a.r_);
   }
-
 };
 
 inline RigTForm inv(const RigTForm& tform) {
-  Quat inv_r = inv(tform.getRotation());
-  return RigTForm(
-    Cvec3(inv_r * Cvec4(-tform.getTranslation(), 1)),
-    inv_r 
-    ); 
+  Quat invRot = inv(tform.getRotation());
+  return RigTForm(Cvec3(invRot * Cvec4(-tform.getTranslation(), 1)), invRot);
 }
 
 inline RigTForm transFact(const RigTForm& tform) {
@@ -75,14 +61,16 @@ inline RigTForm linFact(const RigTForm& tform) {
 }
 
 inline Matrix4 rigTFormToMatrix(const RigTForm& tform) {
-  // m = TR 
-  Matrix4 m = (Matrix4::makeTranslation(tform.getTranslation()) 
-       * quatToMatrix(tform.getRotation())); 
+  Matrix4 m = quatToMatrix(tform.getRotation());
+  const Cvec3 t = tform.getTranslation();
+  for (int i = 0; i < 3; ++i) {
+    m(i, 3) = t(i);
+  }
   return m;
 }
 
-inline RigTForm getRbtTransformation(const RigTForm& Q, const RigTForm& O, const RigTForm& A) {
-	return A * Q * inv(A) * O;
+inline void printRigTForm(const RigTForm& tform) {
+	return printMatrix(rigTFormToMatrix(tform));
 }
 
 #endif

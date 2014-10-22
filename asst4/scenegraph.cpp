@@ -42,14 +42,37 @@ public:
 
   const RigTForm getAccumulatedRbt(int offsetFromStackTop = 0) {
     // TODO
+	  int index = rbtStack_.size() - offsetFromStackTop;
+	  printf("%i", index);
+	  RigTForm init = RigTForm();
+	  for (int i = 0; i < index; i++) {
+		  printf("%i", i);
+		  printRigTForm(rbtStack_[i]);
+		  init = init * rbtStack_[i];
+	  }
+	  return init;
   }
 
   virtual bool visit(SgTransformNode& node) {
     // TODO
+	// printRigTForm(node.getRbt());
+	rbtStack_.push_back(node.getRbt());
+
+	found_ = (target_ != node);
+	return found_;
+	/*
+	if (target_ == node) {
+		return false;
+	}
+	else {
+		return true;
+	}*/
   }
 
   virtual bool postVisit(SgTransformNode& node) {
     // TODO
+	  rbtStack_.pop_back();
+	  return true;
   }
 };
 

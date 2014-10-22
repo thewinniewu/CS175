@@ -10,13 +10,19 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="asst2.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ppm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="glsupport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="asst4.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="picker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="scenegraph.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -34,6 +40,18 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="glsupport.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="picker.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="scenegraph.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="drawer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="asstcommon.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -54,6 +72,12 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\solid-gl2.fshader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\pick-gl2.fshader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\pick-gl3.fshader">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

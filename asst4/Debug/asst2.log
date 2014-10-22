@@ -1,0 +1,14 @@
+﻿Build started 10/21/2014 11:40:52 PM.
+     1>Project "C:\Users\Jesse\Documents\Harvard\Junior Year\CS175\thewinniewu\asst4\asst2.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo".\Debug\\" /Fd".\Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt asst4.cpp picker.cpp scenegraph.cpp
+         scenegraph.cpp
+     1>c:\users\jesse\documents\harvard\junior year\cs175\thewinniewu\asst4\scenegraph.cpp(53): error C3861: 'printRigTForm': identifier not found
+         picker.cpp
+         asst4.cpp
+         Generating Code...
+     1>Done Building Project "C:\Users\Jesse\Documents\Harvard\Junior Year\CS175\thewinniewu\asst4\asst2.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:02.70

@@ -18,36 +18,43 @@ bool Picker::visit(SgTransformNode& node) {
 }
 
 bool Picker::postVisit(SgTransformNode& node) {
-  nodeStack_.pop_back(); 
+  nodeStack_.pop_back();
   return drawer_.postVisit(node);
 }
 
 bool Picker::visit(SgShapeNode& node) {
-  shared_ptr<SgRbtNode> p;
-  for (int i = nodeStack_.size() - 1; i >= 0; i--) {
-    p = dynamic_pointer_cast<SgRbtNode>(nodeStack_[i]);
-    if (p != NULL) {
-      break;
-    }
-  } 
-  
-  idCounter_++; 
+  /*for (int i = nodeStack_.size() - 1; i >= 0; i--) {
+	  p = dynamic_pointer_cast<SgRbtNode>(nodeStack_[i]);
+	  if (p != NULL) {
+		  break;
+	  }
+  }*/
+  shared_ptr<SgRbtNode> p = dynamic_pointer_cast<SgRbtNode>(nodeStack_.back());
+  assert(p);
+  idCounter_++;
   addToMap(idCounter_, p);
   const Cvec3 color = idToColor(idCounter_);
+  //cout << "idCounter: " << idCounter_ << "\n";
+  //cout << "colors: " << color[0] <<  ", " << color[1] << "," << color[2] << "\n";
   safe_glUniform3f(drawer_.getCurSS().h_uIdColor, color[0], color[1], color[2]);
- 
+
+  nodeStack_.push_back(node.shared_from_this());
+
   return drawer_.visit(node);
 }
 
 bool Picker::postVisit(SgShapeNode& node) {
-  return drawer_.postVisit(node);
+  // TODO
+	nodeStack_.pop_back();
+    return drawer_.postVisit(node);
 }
 
 shared_ptr<SgRbtNode> Picker::getRbtNodeAtXY(int x, int y) {
+  // TODO
   PackedPixel image;
   glReadPixels(x, y, 1, 1, GL_RGB, GL_UNSIGNED_BYTE, &image);
-  cout << "picked: " << find(colorToId(image)) << "\n"; 
-  return find(colorToId(image));
+  cout << "picked: " << find(colorToId(image)) << "\n";
+  return find(colorToId(image)); 
 }
 
 //------------------
