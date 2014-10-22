@@ -388,6 +388,18 @@ static void drawArcBall(const ShaderState& curSS) {
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
+static shared_ptr<SgRbtNode> getNodeForEye(int i) {
+   switch (i) { 
+    case SKY:
+      return g_skyNode;
+    case OBJECT0:
+      return g_robot1Node;
+    case OBJECT1:
+      return g_robot2Node;
+  }
+
+}
+
 static void drawStuff(const ShaderState& curSS, bool picking) {
   // if we are not translating, update arcball scale
   if (!(g_mouseMClickButton || (g_mouseLClickButton && g_mouseRClickButton) || (g_mouseLClickButton && !g_mouseRClickButton && g_spaceDown)))
@@ -400,8 +412,8 @@ static void drawStuff(const ShaderState& curSS, bool picking) {
   const Matrix4 projmat = makeProjectionMatrix();
   sendProjectionMatrix(curSS, projmat);
 
-  const RigTForm eyeRbt = getRbtFromObjId(g_activeEye);
-  //const RigTForm eyeRbt = getPathAccumRbt(g_world, g_skyNode);
+  //const RigTForm eyeRbt = getRbtFromObjId(g_activeEye);
+  const RigTForm eyeRbt = getPathAccumRbt(g_world, getNodeForEye(g_activeEye));
   // printf("Eye");
   // printRigTForm(eyeRbt);
   // printf("Eye1");
@@ -439,7 +451,7 @@ static void drawStuff(const ShaderState& curSS, bool picking) {
 	  g_world->accept(drawer);
 
 	  if (g_displayArcball && shouldUseArcball()) {
-		drawArcBall(curSS);
+		  drawArcBall(curSS);
 	  }
   }
   else {
@@ -492,6 +504,7 @@ static Cvec3 getArcballDirection(const Cvec2& p, const double r) {
 static RigTForm moveArcball(const Cvec2& p0, const Cvec2& p1) {
   const Matrix4 projMatrix = makeProjectionMatrix();
   const RigTForm eyeInverse = inv(getRbtFromObjId(g_activeEye));
+  cout << g_currentPickedRbtNode; 
   const Cvec3 arcballCenter = getArcballRbt().getTranslation();
   const Cvec3 arcballCenter_ec = Cvec3(eyeInverse * Cvec4(arcballCenter, 1));
 
@@ -563,7 +576,8 @@ static void pick() {
 
 	// Uncomment below and comment out the glutPostRedisplay in mouse(...) call back
 	// to see result of the pick rendering pass
-	// glutSwapBuffers();
+  
+  //glutSwapBuffers();
 
 	//Now set back the clear color
 	glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
@@ -582,12 +596,20 @@ static void motion(const int x, const int y) {
 
   const RigTForm M = getMRbt(dx, dy);   // the "action" matrix
 
+  RigTForm A;
   // the matrix for the auxiliary frame (the w.r.t.)
-  const RigTForm A = makeMixedFrame(getArcballRbt(), getRbtFromObjId(g_activeEye));
-
-  RigTForm O = doMtoOwrtA(M, getRbtFromObjId(g_activeObject), A);
-
-  setRbtFromObjId(g_activeObject, O);
+  if (g_activeEye == SKY) {
+     A = linFact(getRbtFromObjId(g_activeEye));
+  } else {
+     RigTForm obj = getPathAccumRbt(g_world, g_currentPickedRbtNode, 0);
+     RigTForm parent = getPathAccumRbt(g_world, g_currentPickedRbtNode, 1);
+     RigTForm frame = getPathAccumRbt(g_world, getNodeForEye(g_activeEye), 0);   
+     A = inv(parent) * transFact(obj) * linFact(frame);
+  }
+  
+  RigTForm O = doMtoOwrtA(M, g_currentPickedRbtNode->getRbt(), A);
+   
+  g_currentPickedRbtNode->setRbt(O);   
 
   g_mouseClickX += dx;
   g_mouseClickY += dy;
@@ -614,7 +636,6 @@ static void mouse(const int button, const int state, const int x, const int y) {
 	  pick();
 	  g_pickerMode = false;
   }
-
   glutPostRedisplay();
 }
 
@@ -648,6 +669,7 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     g_activeShader ^= 1;
     break;
   case 'v':
+
     g_activeEye = ObjId((g_activeEye+1) % 3);
     cerr << "Active eye is " << g_objNames[g_activeEye] << endl;
     break;
