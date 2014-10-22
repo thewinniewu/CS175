@@ -240,6 +240,18 @@ static bool g_pickerMode = false;
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
 
+static shared_ptr<SgRbtNode> getNodeForEye(int i) {
+   switch (i) { 
+    case SKY:
+      return g_skyNode;
+    case OBJECT0:
+      return g_robot1Node;
+    case OBJECT1:
+      return g_robot2Node;
+  }
+
+}
+
 
 
 
@@ -334,14 +346,12 @@ enum ManipMode {
 };
 
 static ManipMode getManipMode() {
-  if (g_activeObject == g_activeEye) {
-    if (g_activeEye == SKY && g_activeCameraFrame == WORLD_SKY)
+  if (g_currentPickedRbtNode) {
+      return ARCBALL_ON_PICKED;
+  } else if (g_activeEye == SKY && g_activeCameraFrame == WORLD_SKY)
       return ARCBALL_ON_SKY;
     else
       return EGO_MOTION;
-  }
-  else
-    return ARCBALL_ON_PICKED;
 }
 
 static bool shouldUseArcball() {
@@ -353,11 +363,11 @@ static bool shouldUseArcball() {
 static RigTForm getArcballRbt() {
   switch (getManipMode()) {
   case ARCBALL_ON_PICKED:
-    return getRbtFromObjId(g_activeObject);
+    return getPathAccumRbt(g_world, g_currentPickedRbtNode); //getRbtFromObjId(g_activeObject);
   case ARCBALL_ON_SKY:
     return RigTForm();
   case EGO_MOTION:
-    return getRbtFromObjId(g_activeEye);
+    return getPathAccumRbt(g_world, getNodeForEye(g_activeEye)); //getRbtFromObjId(g_activeEye);
   default:
     throw runtime_error("Invalid ManipMode");
   }
@@ -386,18 +396,6 @@ static void drawArcBall(const ShaderState& curSS) {
 
   // switch back to solid mode
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-}
-
-static shared_ptr<SgRbtNode> getNodeForEye(int i) {
-   switch (i) { 
-    case SKY:
-      return g_skyNode;
-    case OBJECT0:
-      return g_robot1Node;
-    case OBJECT1:
-      return g_robot2Node;
-  }
-
 }
 
 static void drawStuff(const ShaderState& curSS, bool picking) {
@@ -606,10 +604,14 @@ static void motion(const int x, const int y) {
      RigTForm frame = getPathAccumRbt(g_world, getNodeForEye(g_activeEye), 0);   
      A = inv(parent) * transFact(obj) * linFact(frame);
   }
-  
-  RigTForm O = doMtoOwrtA(M, g_currentPickedRbtNode->getRbt(), A);
-   
-  g_currentPickedRbtNode->setRbt(O);   
+ 
+  if (g_currentPickedRbtNode) {
+    RigTForm O = doMtoOwrtA(M, g_currentPickedRbtNode->getRbt(), A);
+    g_currentPickedRbtNode->setRbt(O);   
+  } else {
+    shared_ptr<SgRbtNode> eyeNode = getNodeForEye(g_activeEye);
+    eyeNode->setRbt(A * M * inv(A) * eyeNode->getRbt());
+  }
 
   g_mouseClickX += dx;
   g_mouseClickY += dy;
