@@ -638,6 +638,22 @@ static void deleteCurrentFrame() {
 	}
 }
 
+
+void interpolate(float t) {
+  int keyframe1 = floor(t);
+  float alpha = t - floor(t);
+  
+  // get the current frame and the frame after the current frame 
+   
+
+
+  //interpolate between the two
+
+
+
+  glutPostRedisplay();
+}
+
 static void shiftKeyframe(char* direction) {
 	for (list<SgRbtNodes>::iterator iter = keyframeList.begin(), end = keyframeList.end(); iter != end; ++iter) {
 		if (*iter == *g_currentKeyframe) {

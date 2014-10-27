@@ -73,4 +73,22 @@ inline void printRigTForm(const RigTForm& tform) {
 	return printMatrix(rigTFormToMatrix(tform));
 }
 
+inline Cvec3 lerp(Cvec3 c0, Cvec3 c1, double alpha) {
+  return c0 * (1 - alpha) + c1 * alpha;
+}
+
+static Quat cn(Quat q) {
+  if (q[0] < 0) {
+    return Quat(q[0] * -1, q[1] * -1, q[2] * -1, q[3] * -1);
+  }
+    return q;
+}
+
+inline Quat slerp(Quat q0, Quat q1, double alpha) {
+  if (q0 == q1) {
+    return q0;
+  }
+  return cn(q1 * inv(q0)).pow(alpha) * q0;
+}
+
 #endif
