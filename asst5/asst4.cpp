@@ -194,9 +194,9 @@ static shared_ptr<SgRbtNode> g_currentPickedRbtNode; // used later when you do p
 
 // for keyframe animation
 typedef std::vector<std::tr1::shared_ptr<SgRbtNode> > SgRbtNodes;
-static shared_ptr<SgRbtNodes> g_currentKeyframe; // pointer to vector of SgRbtNodes that represent the current frame 
+shared_ptr<SgRbtNodes> g_currentKeyframe; // pointer to vector of SgRbtNodes that represent the current frame 
 list<SgRbtNodes> keyframeList;  // list of SgRbtNodes 
-// list<SgRbtNodes>::iterator iter = keyframeList.begin(); // iterator through the list
+list<SgRbtNodes>::iterator iter = keyframeList.begin(); // iterator through the list
  
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
 static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
@@ -575,20 +575,24 @@ static void initializeNewKeyframe() {
 		printf("The current frame has not been initialized, creating a new keyframe\n");
 		// create a new keyframe from the beginning of the stack
 		keyframeList.push_back(new_keyframe);
+		iter = keyframeList.end();
 	}
 	else {
 		printf("creating new frame after the current keyframe\n");
+		// iter must always be where g_currentKeyframe is
+		keyframeList.insert(iter, new_keyframe);
+		/*
 		for (list<SgRbtNodes>::iterator iter = keyframeList.begin(), end = keyframeList.end(); iter != end; ++iter) {
 			if (*iter == *g_currentKeyframe) {
 				keyframeList.insert(++iter, new_keyframe);
 				break;
 			}
-		}
+		}*/
 	}
 	// copy scene graph rbt data to new key frame
 	dumpSgRbtNodes(g_world, new_keyframe);
 	// set current key frame to this new frame
-	*g_currentKeyframe = new_keyframe;
+	g_currentKeyframe = std::make_shared<SgRbtNodes>(new_keyframe);
 }
 
 static void copyCurrentKeyframe() {
@@ -598,7 +602,14 @@ static void copyCurrentKeyframe() {
 		printf("no key frames\n");
 	}
 	else {
-		// TODO: how to do? maybe declare a new class? 
+		// grab pointers to current scene data with the dump function, then copy our current key frame rbts there
+		SgRbtNodes current_scene; 
+		dumpSgRbtNodes(g_world, current_scene);
+		for (std::vector<shared_ptr<SgRbtNode>>::iterator iter1 = current_scene.begin(),
+			iter2 = (*g_currentKeyframe).begin(), end = current_scene.end(); iter1 != end; ++iter1, ++iter2) {
+			// set the rbt of the current scene to the rbt of the currentFrame
+			(**iter1).setRbt((**iter2).getRbt());
+		}
 	}
 }
 
@@ -638,6 +649,7 @@ static void deleteCurrentFrame() {
 	}
 }
 
+// TODO: overhaul janky string system
 static void shiftKeyframe(char* direction) {
 	for (list<SgRbtNodes>::iterator iter = keyframeList.begin(), end = keyframeList.end(); iter != end; ++iter) {
 		if (*iter == *g_currentKeyframe) {
