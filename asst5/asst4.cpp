@@ -194,14 +194,15 @@ static shared_ptr<SgRbtNode> g_skyNode, g_groundNode, g_robot1Node, g_robot2Node
 static shared_ptr<SgRbtNode> g_currentPickedRbtNode; // used later when you do pickingj
 
 // for keyframe animation
-typedef std::vector<std::tr1::shared_ptr<SgRbtNode> > SgRbtNodes;
-list<SgRbtNodes> keyframeList;  // list of SgRbtNodes 
-
 static int g_msBetweenKeyFrames = 2000; // 2 seconds between keyframes
 static int g_animateFramesPerSecond = 60; // frames to render per second
 static bool g_isPlayingAnimation = false; // whether or not animation is currently playing
 
-list<SgRbtNodes>::iterator g_currentKeyframe = keyframeList.begin(); // pointer to vector of SgRbtNodes that represent the current frame 
+enum KeyframeId { ADVANCE = 0, RETREAT = 1 };
+typedef std::vector<RigTForm> RigTFormVector;
+list<RigTFormVector> keyframeList;  // list of RigTFormVector 
+list<RigTFormVector>::iterator g_currentKeyframe = keyframeList.begin(); // pointer to vector of RigTFormVector that represent the current frame 
+>>>>>>> cb7dc8f1106186668887a2f8c4e5f7376af757a4
  
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
 static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
@@ -575,7 +576,7 @@ static void keyboardUp(const unsigned char key, const int x, const int y) {
 }
 
 static void initializeNewKeyframe() {
-	SgRbtNodes new_keyframe;
+	RigTFormVector new_keyframe;
 	
 	if (keyframeList.empty()) {
 		// nothing initialized yet, do so now
@@ -598,14 +599,13 @@ static void initializeNewKeyframe() {
 		keyframeList.insert(g_currentKeyframe, new_keyframe);
 		--g_currentKeyframe;
 	}
-	// copy scene graph rbt data to new key frame
-	dumpSgRbtNodes(g_world, new_keyframe);
-
-  if (g_currentKeyframe == keyframeList.end()) {
-		printf("it is now the end char\n");
-	}
-	if (g_currentKeyframe == keyframeList.begin()) {
-		printf("it is now the beginning char\n");
+	// copy scene graph rbt data to new key frame		
+	
+	std::vector<std::tr1::shared_ptr<SgRbtNode>> RbtNodes;
+	dumpSgRbtNodes(g_world, RbtNodes);
+	(*g_currentKeyframe).clear();
+	for (int i = 0; i < RbtNodes.size(); ++i) {
+		(*g_currentKeyframe).push_back(RbtNodes[i]->getRbt());
 	}
 }
 
@@ -617,12 +617,22 @@ static void copyCurrentKeyframe() {
 	}
 	else {
 		// grab pointers to current scene data with the dump function, then copy our current key frame rbts there
-		SgRbtNodes current_scene; 
-		dumpSgRbtNodes(g_world, current_scene);
-		for (std::vector< shared_ptr<SgRbtNode> >::iterator iter1 = current_scene.begin(),
-			iter2 = (*g_currentKeyframe).begin(), end = current_scene.end(); iter1 != end; ++iter1, ++iter2) {
-			// set the rbt of the current scene to the rbt of the currentFrame
-			(**iter1).setRbt((**iter2).getRbt());
+		std::vector<std::tr1::shared_ptr<SgRbtNode>> RbtNodes;
+		dumpSgRbtNodes(g_world, RbtNodes);
+		
+		std::vector<shared_ptr<SgRbtNode>>::iterator iter1 = RbtNodes.begin();
+		std::vector<RigTForm>::iterator iter2 = (*g_currentKeyframe).begin();
+		printf("%d\n", (*g_currentKeyframe).size());
+		printf("%d\n", RbtNodes.size());
+		while (true) {
+			if (iter1 != RbtNodes.end() && iter2 != (*g_currentKeyframe).end()) {
+				(**iter1).setRbt(*iter2);
+				++iter1;
+				++iter2;
+			}
+			else {
+				break;
+			}
 		}
 	}
 }
@@ -634,11 +644,8 @@ static void deleteCurrentFrame() {
 	}
 	else {
 		printf("current frame was set, deleting now\n");
-		// SgRbtNodes temp = *g_currentKeyframe;
-		// ++g_currentKeyframe;
-		// --g_currentKeyframe;
 		
-		list<SgRbtNodes>::iterator temp = g_currentKeyframe;
+		list<RigTFormVector>::iterator temp = g_currentKeyframe;
 		if (g_currentKeyframe == keyframeList.begin()) {
 			if (++g_currentKeyframe == keyframeList.end()){
 				g_currentKeyframe = keyframeList.end();
@@ -654,32 +661,8 @@ static void deleteCurrentFrame() {
 
 		keyframeList.erase(temp);
 		
-		/*
-		for (list<SgRbtNodes>::iterator iter = keyframeList.begin(), end = keyframeList.end(); iter != end; ++iter) {
-			if (*iter == *g_currentKeyframe) {
-				// current frame is the first one, set current to right after it
-				if (iter == keyframeList.begin()) {
-					++iter;
-					*g_currentKeyframe = *iter;
-					// if there was actually only one frame and by incrementing we got to the end symbol, set to undefined instead
-					if (iter == keyframeList.end()) {
-						g_currentKeyframe = shared_ptr<SgRbtNodes>();
-					}
-					break; 
-				}
-				else {
-					// current frame was not the first one, set current right before it
-					--iter;
-					*g_currentKeyframe = *iter;
-					break;
-				}
-			}
-		} */
-		// remove the old keyframe
-
-
-		// copy RBT data from new current frame to scene graph
-		// copyCurrentKeyframe();
+		// update scene
+		copyCurrentKeyframe();
 	}
 }
 
@@ -775,28 +758,23 @@ static void controlAnimation() {
   }
 }
 
-// TODO: overhaul janky string system
-static void shiftKeyframe(char* direction) {
-	for (list<SgRbtNodes>::iterator iter = keyframeList.begin(), end = keyframeList.end(); iter != end; ++iter) {
-		if (*iter == *g_currentKeyframe) {
-			if (strcmp(direction, "advance") == 0) {
-				++iter;
-				if (iter == keyframeList.end()) {
-					printf("Cannot move forward, reached end of stack\n");
-					return;
-				}
-			}
-			else if (strcmp(direction, "retreat") == 0) {
-				if (iter == keyframeList.begin()) {
-					printf("Cannot move backwards, at beginning of stack\n");
-					return;
-				}
-				--iter;
-			} 
-			copyCurrentKeyframe();
-			break;
+static void shiftKeyframe(KeyframeId i) {
+	if (i == ADVANCE) {
+		++g_currentKeyframe;
+		if (g_currentKeyframe == keyframeList.end()) {
+			printf("Cannot move forward, reached end of stack\n");
+			--g_currentKeyframe;
+			return;
 		}
 	}
+	else if (i == RETREAT) {
+		if (g_currentKeyframe == keyframeList.begin()) {
+			printf("Cannot move backwards, at beginning of stack\n");
+			return;
+		}
+		--g_currentKeyframe;
+	}
+	copyCurrentKeyframe();
 }
 
 static void updateScene() {
@@ -806,7 +784,12 @@ static void updateScene() {
 	}
 	// otherwise, copy the scene graph rbt to current frame 
 	else {
-		dumpSgRbtNodes(g_world, *g_currentKeyframe);
+		std::vector<std::tr1::shared_ptr<SgRbtNode>> RbtNodes;
+		dumpSgRbtNodes(g_world, RbtNodes);
+		(*g_currentKeyframe).clear();
+		for (int i = 0; i < RbtNodes.size(); ++i) {
+			(*g_currentKeyframe).push_back(RbtNodes[i]->getRbt());
+		}
 	}
 }
 
@@ -858,12 +841,12 @@ static void keyboard(const unsigned char key, const int x, const int y) {
 	  break;
   case '>':
 	  printf("> was pressed\n");
-	  shiftKeyframe("advance");
+	  shiftKeyframe(ADVANCE);
 	  break;
   case '<':
 	  printf("< was pressed\n");
-	  shiftKeyframe("retreat");
-	  break;
+	  shiftKeyframe(RETREAT);
+	break;
   case 'd':
 	  printf("d was pressed\n");
 	  deleteCurrentFrame();
