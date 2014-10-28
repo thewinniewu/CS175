@@ -8,19 +8,6 @@
 
 typedef std::vector<std::tr1::shared_ptr<SgRbtNode> > SgRbtNodes;
 
-class KeyframeList : public SgNodeVisitor {
-protected:
-	shared_ptr<SgRbtNodes> g_currentKeyframe;
-	list<SgRbtNodes> keyframeList_;
-
-public:
-
-}
-
-
-inline void copyCurrentKeyframe(){
-
-}
 
 /*
 struct RbtNodesScanner : public SgNodeVisitor {
