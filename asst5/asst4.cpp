@@ -195,14 +195,14 @@ static shared_ptr<SgRbtNode> g_currentPickedRbtNode; // used later when you do p
 
 // for keyframe animation
 typedef std::vector<std::tr1::shared_ptr<SgRbtNode> > SgRbtNodes;
-shared_ptr<SgRbtNodes> g_currentKeyframe; // pointer to vector of SgRbtNodes that represent the current frame 
 list<SgRbtNodes> keyframeList;  // list of SgRbtNodes 
-list<SgRbtNodes>::iterator iter = keyframeList.begin(); // iterator through the list
 
 static int g_msBetweenKeyFrames = 2000; // 2 seconds between keyframes
 static int g_animateFramesPerSecond = 60; // frames to render per second
 static bool g_isPlayingAnimation = false; // whether or not animation is currently playing
 
+list<SgRbtNodes>::iterator g_currentKeyframe = keyframeList.begin(); // pointer to vector of SgRbtNodes that represent the current frame 
+ 
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
 static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
 static RigTForm g_objectRbt[2] = {RigTForm(Cvec3(-1,0,0)), RigTForm(Cvec3(1,0,0))};
@@ -576,29 +576,37 @@ static void keyboardUp(const unsigned char key, const int x, const int y) {
 
 static void initializeNewKeyframe() {
 	SgRbtNodes new_keyframe;
+	
 	if (keyframeList.empty()) {
-		printf("The current frame has not been initialized, creating a new keyframe\n");
-		// create a new keyframe from the beginning of the stack
+		// nothing initialized yet, do so now
+		printf("initializing first frame\n");
+		keyframeList.push_front(new_keyframe); 
+		g_currentKeyframe = keyframeList.begin();
+	}
+	else if (g_currentKeyframe == keyframeList.end()) {
+		printf("g_currentKeyframe is undefined, it returned the end character\n");
+		// create a new keyframe at the end of the stack
 		keyframeList.push_back(new_keyframe);
-		iter = keyframeList.end();
+		// point to last element
+		--g_currentKeyframe;
 	}
 	else {
-		printf("creating new frame after the current keyframe\n");
+		printf("current key frame initialized, creating a new keyframe after it\n");
+
 		// iter must always be where g_currentKeyframe is
-		keyframeList.insert(iter, new_keyframe);
-		/*
-		for (list<SgRbtNodes>::iterator iter = keyframeList.begin(), end = keyframeList.end(); iter != end; ++iter) {
-			if (*iter == *g_currentKeyframe) {
-				keyframeList.insert(++iter, new_keyframe);
-				break;
-			}
-		}*/
+		++g_currentKeyframe;
+		keyframeList.insert(g_currentKeyframe, new_keyframe);
+		--g_currentKeyframe;
 	}
 	// copy scene graph rbt data to new key frame
 	dumpSgRbtNodes(g_world, new_keyframe);
-	// set current key frame to this new frame
-  //TODO got rid of this for compile error	
-  //g_currentKeyframe = make_shared<SgRbtNodes>(new_keyframe);
+
+  if (g_currentKeyframe == keyframeList.end()) {
+		printf("it is now the end char\n");
+	}
+	if (g_currentKeyframe == keyframeList.begin()) {
+		printf("it is now the beginning char\n");
+	}
 }
 
 static void copyCurrentKeyframe() {
@@ -621,12 +629,32 @@ static void copyCurrentKeyframe() {
 
 static void deleteCurrentFrame() {
 	// if our stack is empty, 
-	if ((*g_currentKeyframe).empty()) {
+	if (g_currentKeyframe == keyframeList.end()) {
 		printf("there's no frame, nothing to delete\n");
 	}
 	else {
 		printf("current frame was set, deleting now\n");
-		SgRbtNodes temp = *g_currentKeyframe;
+		// SgRbtNodes temp = *g_currentKeyframe;
+		// ++g_currentKeyframe;
+		// --g_currentKeyframe;
+		
+		list<SgRbtNodes>::iterator temp = g_currentKeyframe;
+		if (g_currentKeyframe == keyframeList.begin()) {
+			if (++g_currentKeyframe == keyframeList.end()){
+				g_currentKeyframe = keyframeList.end();
+			}
+			else {
+				++g_currentKeyframe;
+			}
+		}
+		else {
+			--g_currentKeyframe;
+		}
+		
+
+		keyframeList.erase(temp);
+		
+		/*
 		for (list<SgRbtNodes>::iterator iter = keyframeList.begin(), end = keyframeList.end(); iter != end; ++iter) {
 			if (*iter == *g_currentKeyframe) {
 				// current frame is the first one, set current to right after it
@@ -646,12 +674,12 @@ static void deleteCurrentFrame() {
 					break;
 				}
 			}
-		}
+		} */
 		// remove the old keyframe
-		keyframeList.remove(temp);
+
 
 		// copy RBT data from new current frame to scene graph
-		copyCurrentKeyframe();
+		// copyCurrentKeyframe();
 	}
 }
 
