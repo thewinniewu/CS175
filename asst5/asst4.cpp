@@ -201,7 +201,7 @@ list<SgRbtNodes>::iterator iter = keyframeList.begin(); // iterator through the 
 
 static int g_msBetweenKeyFrames = 2000; // 2 seconds between keyframes
 static int g_animateFramesPerSecond = 60; // frames to render per second
-
+static bool g_isPlayingAnimation = false; // whether or not animation is currently playing
 
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
 static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
@@ -661,28 +661,50 @@ bool interpolateAndDisplay(float t) {
   float alpha = t - floor(t);
   
   // get the current frame and the frame after the current frame 
-   
-
+  list<SgRbtNodes>::iterator nextKeyframe = g_currentKeyframe;     
 
   //interpolate between the two
-
-
+  for (int i = 0; i < g_currentKeyframe 
+  // lerp translation and slerp rotation
+  
 
   glutPostRedisplay();
+  // return true when animation is done  
   return true;
+  
 }
 
 static void animateTimerCallback(int ms) {
-  float t = (float) ms / (float) g_msBetweenKeyframes;
+  float t = (float) ms / (float) g_msBetweenKeyFrames;
 
   bool endReached = interpolateAndDisplay(t);
   if (!endReached) {
-          glutTimerFunc(1000/g_animatedFramesPerSecond,
+          glutTimerFunc(1000/g_animateFramesPerSecond,
                         animateTimerCallback,
-                        ms + 1000/g_animatedFramesPerSecond
+                        ms + 1000/g_animateFramesPerSecond
           );
-  } else {
+  } 
+}
 
+static void controlAnimation() {
+  if (!g_isPlayingAnimation) {
+    // start the animation
+    
+    // check that there are 4 keyframes
+    if (keyframeList.size() < 4) {
+      cout << "Unable to start animation -- you only have "
+           << keyframeList.size()
+           << " keyframes, but we need at least 4!";
+      return;
+    }
+    // toggle global flag for animation play
+    g_isPlayingAnimation = true;
+
+    // call animateTimerCallback(0)
+    
+  } else {
+    // animation is alrady playing, so stop 
+    g_isPlayingAnimation = false; 
   }
 }
 
@@ -751,44 +773,59 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     cerr << "Editing sky eye w.r.t. " << (g_activeCameraFrame == WORLD_SKY ? "world-sky frame\n" : "sky-sky frame\n") << endl;
     break;
   case 'p':
-	g_pickerMode = !g_pickerMode;
-	cout << "Picking mode: " << g_pickerMode << "\n";
-	break;
+	  g_pickerMode = !g_pickerMode;
+	  cout << "Picking mode: " << g_pickerMode << "\n";
+	  break;
   case ' ':
-	g_spaceDown = true;
-	break;
+	  g_spaceDown = true;
+	  break;
 
-// keyframe animation
+  // keyframe animation
   case 'c':
-	printf("c was pressed\n");
-	copyCurrentKeyframe();
-	break;
+	  printf("c was pressed\n");
+	  copyCurrentKeyframe();
+	  break;
   case 'u':
-	printf("u was pressed\n");
-	updateScene();
-	break;
+	  printf("u was pressed\n");
+	  updateScene();
+	  break;
   case '>':
-	printf("> was pressed\n");
-	shiftKeyframe("advance");
-	break;
+	  printf("> was pressed\n");
+	  shiftKeyframe("advance");
+	  break;
   case '<':
-	printf("< was pressed\n");
-	shiftKeyframe("retreat");
-	break;
+	  printf("< was pressed\n");
+	  shiftKeyframe("retreat");
+	  break;
   case 'd':
-	printf("d was pressed\n");
-	deleteCurrentFrame();
-	break;
+	  printf("d was pressed\n");
+	  deleteCurrentFrame();
+	  break;
   case 'n':
-	printf("n was pressed\n");
-	initializeNewKeyframe();
-	break;
+	  printf("n was pressed\n");
+	  initializeNewKeyframe();
+	  break;
   case 'i':
-	printf("i was pressed\n");
-	break;
+	  printf("i was pressed\n");
+	  break;
   case 'w':
-	printf("w was pressed\n");
-	break;
+	  printf("w was pressed\n");
+	  break;
+  case 'y':
+    printf("y was pressed\n");
+    controlAnimation();
+    break;
+  case '+':
+    printf("+ was pressed\n");
+    g_msBetweenKeyFrames = max(100, g_msBetweenKeyFrames - 100);
+    cout << "The new speed is: " << g_msBetweenKeyFrames << "ms between keyframes"; 
+   break;
+  case '-':
+    printf("- was pressed\n"); 
+    g_msBetweenKeyFrames = min(1000, g_msBetweenKeyFrames + 100);
+    cout << "The new speed is: " << g_msBetweenKeyFrames << "ms between keyframes"; 
+
+    break;
   }
   glutPostRedisplay();
 }
