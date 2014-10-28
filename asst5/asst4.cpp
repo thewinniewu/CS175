@@ -197,13 +197,18 @@ static shared_ptr<SgRbtNode> g_currentPickedRbtNode; // used later when you do p
 static int g_msBetweenKeyFrames = 2000; // 2 seconds between keyframes
 static int g_animateFramesPerSecond = 60; // frames to render per second
 static bool g_isPlayingAnimation = false; // whether or not animation is currently playing
+static int g_mostRecentPlayedKeyframe = 0;
 
 enum KeyframeId { ADVANCE = 0, RETREAT = 1 };
 typedef std::vector<RigTForm> RigTFormVector;
 list<RigTFormVector> keyframeList;  // list of RigTFormVector 
 list<RigTFormVector>::iterator g_currentKeyframe = keyframeList.begin(); // pointer to vector of RigTFormVector that represent the current frame 
->>>>>>> cb7dc8f1106186668887a2f8c4e5f7376af757a4
- 
+
+static list<RigTFormVector>::iterator g_currentPlayingFromKeyframe;
+static list<RigTFormVector>::iterator g_currentPlayingToKeyframe;
+
+
+
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
 static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
 static RigTForm g_objectRbt[2] = {RigTForm(Cvec3(-1,0,0)), RigTForm(Cvec3(1,0,0))};
@@ -601,7 +606,7 @@ static void initializeNewKeyframe() {
 	}
 	// copy scene graph rbt data to new key frame		
 	
-	std::vector<std::tr1::shared_ptr<SgRbtNode>> RbtNodes;
+	std::vector<std::tr1::shared_ptr<SgRbtNode> > RbtNodes;
 	dumpSgRbtNodes(g_world, RbtNodes);
 	(*g_currentKeyframe).clear();
 	for (int i = 0; i < RbtNodes.size(); ++i) {
@@ -617,13 +622,13 @@ static void copyCurrentKeyframe() {
 	}
 	else {
 		// grab pointers to current scene data with the dump function, then copy our current key frame rbts there
-		std::vector<std::tr1::shared_ptr<SgRbtNode>> RbtNodes;
+		std::vector<std::tr1::shared_ptr<SgRbtNode> > RbtNodes;
 		dumpSgRbtNodes(g_world, RbtNodes);
 		
-		std::vector<shared_ptr<SgRbtNode>>::iterator iter1 = RbtNodes.begin();
+		std::vector<shared_ptr<SgRbtNode> >::iterator iter1 = RbtNodes.begin();
 		std::vector<RigTForm>::iterator iter2 = (*g_currentKeyframe).begin();
-		printf("%d\n", (*g_currentKeyframe).size());
-		printf("%d\n", RbtNodes.size());
+		printf("%lu\n", (*g_currentKeyframe).size());
+		printf("%lu\n", RbtNodes.size());
 		while (true) {
 			if (iter1 != RbtNodes.end() && iter2 != (*g_currentKeyframe).end()) {
 				(**iter1).setRbt(*iter2);
@@ -670,80 +675,88 @@ static void deleteCurrentFrame() {
 bool interpolateAndDisplay(float t) {
   // get alpha for slerping and lerping 
   float alpha = t - floor(t);
-  
-  // get the current frame and the frame after the current frame 
-  list<SgRbtNodes>::iterator thisKeyframe = keyframeList.begin(); 
-  list<SgRbtNodes>::iterator nextKeyframe = thisKeyframe;     
-  ++nextKeyframe;
+ 
+  int keyframe = floor(t);
+  if (keyframe == 0) {
+    g_currentPlayingFromKeyframe = keyframeList.begin();
+    g_currentPlayingToKeyframe = g_currentPlayingFromKeyframe;
+    ++g_currentPlayingToKeyframe;
+  }
+ 
+  // interpolate between the next pair of keyframes if we have passed them
+  if (keyframe != g_mostRecentPlayedKeyframe) {
+    g_mostRecentPlayedKeyframe = keyframe;
+    ++g_currentPlayingFromKeyframe; 
+    ++g_currentPlayingToKeyframe; 
+  }
 
+  // stop animation when we are done
+  if (g_currentPlayingToKeyframe == keyframeList.end()) {
+    g_isPlayingAnimation = false;
+    g_mostRecentPlayedKeyframe = 0;
+    return true;
+  }
+  
   // make a list for interpolations
   vector<RigTForm> interpolations;
 
-  while (true) {
-    if (nextKeyframe == keyframeList.end())
-      break;
-    
-    //interpolate between the two
-    int size = (*thisKeyframe).size(); 
-    for (int i = 0; i < size; i++) { 
+  //interpolate between the two
+  int size = (*g_currentPlayingFromKeyframe).size(); 
+  for (int i = 0; i < size; i++) { 
     // lerp translation and slerp rotation
-      RigTForm interpolation = 
-        RigTForm(
-          lerp(
-            ((*thisKeyframe)[i]->getRbt()).getTranslation(),
-            ((*nextKeyframe)[i]->getRbt()).getTranslation(),
-            alpha
-          ),
-          slerp(
-            ((*thisKeyframe)[i]->getRbt()).getRotation(),
-            ((*nextKeyframe)[i]->getRbt()).getRotation(),
-            alpha
-          )
-        );
-      interpolations.push_back(interpolation); 
-    }
-  
-    // move iterators
-    ++thisKeyframe;
-    ++nextKeyframe;
-
-    // get current nodes in scene
-    SgRbtNodes current_scene; 
-	  dumpSgRbtNodes(g_world, current_scene);
-
-    // apply the transformation
-    for (int i = 0; i < current_scene.size(); i++) {
-      current_scene[i]->setRbt(interpolations[i]);  
-    }
+    RigTForm interpolation = 
+      RigTForm(
+        lerp(
+          (*g_currentPlayingFromKeyframe)[i].getTranslation(),
+          (*g_currentPlayingToKeyframe)[i].getTranslation(),
+          alpha
+        ),
+        slerp(
+          (*g_currentPlayingFromKeyframe)[i].getRotation(),
+          (*g_currentPlayingToKeyframe)[i].getRotation(),
+          alpha
+        )
+      );
+    interpolations.push_back(interpolation); 
+  }
  
-    glutPostRedisplay();
-  } 
-  // return true when animation is done  
-  g_isPlayingAnimation = false; 
-  return true;
-}
+  // get current nodes in scene
+	std::vector<std::tr1::shared_ptr<SgRbtNode> > current_nodes;
+	dumpSgRbtNodes(g_world, current_nodes);
+
+  // apply the transformation
+  for (int i = 0; i < current_nodes.size(); i++) {
+    current_nodes[i]->setRbt(interpolations[i]);  
+  }
+ 
+  // redraw scene 
+  glutPostRedisplay();
+
+  // the animation is not done, so return false
+  return false;
+} 
 
 static void animateTimerCallback(int ms) {
   float t = (float) ms / (float) g_msBetweenKeyFrames;
 
-  if (g_isPlayingAnimation) {
-          interpolateAndDisplay(t);
+  bool endReached = interpolateAndDisplay(t);
+  if (!endReached) {
           glutTimerFunc(1000/g_animateFramesPerSecond,
                         animateTimerCallback,
                         ms + 1000/g_animateFramesPerSecond
           );
-  } 
+  } else {
+    g_isPlayingAnimation = false; 
+  }
 }
 
 static void controlAnimation() {
   if (!g_isPlayingAnimation) {
-    // start the animation
-    
     // check that there are 4 keyframes
     if (keyframeList.size() < 4) {
       cout << "Unable to start animation -- you only have "
            << keyframeList.size()
-           << " keyframes, but we need at least 4!";
+           << " keyframes, but we need at least 4!\n";
       return;
     }
     // toggle global flag for animation play
@@ -784,7 +797,7 @@ static void updateScene() {
 	}
 	// otherwise, copy the scene graph rbt to current frame 
 	else {
-		std::vector<std::tr1::shared_ptr<SgRbtNode>> RbtNodes;
+		std::vector<std::tr1::shared_ptr<SgRbtNode> > RbtNodes;
 		dumpSgRbtNodes(g_world, RbtNodes);
 		(*g_currentKeyframe).clear();
 		for (int i = 0; i < RbtNodes.size(); ++i) {
@@ -868,12 +881,12 @@ static void keyboard(const unsigned char key, const int x, const int y) {
   case '+':
     printf("+ was pressed\n");
     g_msBetweenKeyFrames = max(100, g_msBetweenKeyFrames - 100);
-    cout << "The new speed is: " << g_msBetweenKeyFrames << "ms between keyframes"; 
+    cout << "The new speed is: " << g_msBetweenKeyFrames << "ms between keyframes\n"; 
    break;
   case '-':
     printf("- was pressed\n"); 
     g_msBetweenKeyFrames = min(1000, g_msBetweenKeyFrames + 100);
-    cout << "The new speed is: " << g_msBetweenKeyFrames << "ms between keyframes"; 
+    cout << "The new speed is: " << g_msBetweenKeyFrames << "ms between keyframes\n"; 
     break;
   }
   glutPostRedisplay();
