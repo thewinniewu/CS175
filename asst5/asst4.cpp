@@ -41,6 +41,10 @@
 // for keyframe animation
 #include <list>
 #include "sgutils.h"
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
 
 using namespace std;
 using namespace tr1;
@@ -616,8 +620,6 @@ static void copyCurrentKeyframe() {
 		
 		std::vector<shared_ptr<SgRbtNode>>::iterator iter1 = RbtNodes.begin();
 		std::vector<RigTForm>::iterator iter2 = (*g_currentKeyframe).begin();
-		printf("%d\n", (*g_currentKeyframe).size());
-		printf("%d\n", RbtNodes.size());
 		while (true) {
 			if (iter1 != RbtNodes.end() && iter2 != (*g_currentKeyframe).end()) {
 				(**iter1).setRbt(*iter2);
@@ -661,7 +663,7 @@ static void deleteCurrentFrame() {
 }
 
 static void shiftKeyframe(KeyframeId i) {
-	if (i == ADVANCE) {
+	if (i == ADVANCE && g_currentKeyframe != keyframeList.end()) {
 		++g_currentKeyframe;
 		if (g_currentKeyframe == keyframeList.end()) {
 			printf("Cannot move forward, reached end of stack\n");
@@ -692,6 +694,90 @@ static void updateScene() {
 		for (int i = 0; i < RbtNodes.size(); ++i) {
 			(*g_currentKeyframe).push_back(RbtNodes[i]->getRbt());
 		}
+	}
+}
+
+static void readFrameDataFromFile() {
+	ifstream myfile; 
+	string line; 
+	myfile.open("animation.txt");
+	getline(myfile, line);
+	int num_frames = atoi(line.c_str());
+	getline(myfile, line);
+	int num_nodes = atoi(line.c_str());
+	printf("%d %d\n", num_frames, num_nodes);
+	
+	keyframeList.clear();
+	for (int i = 0; i < num_frames; i++) {
+		RigTFormVector frame; 
+		for (int j = 0; j < num_nodes; j++) {
+			RigTForm node; 
+			Cvec3 translation;
+			Quat rotation;
+			std::string line;
+			std::getline(myfile, line);
+			std::stringstream stream(line);
+			for (int k = 0; k < 3; k++) {
+				double cvec_double;
+				stream >> cvec_double;
+				translation[k] = cvec_double;
+				printf("%d ", cvec_double);
+			}
+			for (int l = 0; l < 4; l++) {
+				double quat_double;
+				stream >> quat_double;
+				rotation[l] = quat_double;
+				printf("%d ", quat_double);
+			}
+			printf("\n");
+			node.setTranslation(translation); 
+			node.setRotation(rotation);
+			frame.push_back(node);
+		}
+		keyframeList.push_back(frame);
+	}
+	g_currentKeyframe = keyframeList.begin();
+
+	copyCurrentKeyframe();
+
+	myfile.close();
+}
+
+static void writeFrameDataToFile() {
+	if (!keyframeList.empty()) {
+		ofstream myfile;
+		myfile.open("animation.txt");
+		// myfile << "Writing this to a file.\n";
+		// myfile << "testing, testing \n";
+		string output = "";
+		int num_frames = keyframeList.size();
+		list<RigTFormVector>::iterator iter = keyframeList.begin();
+		int num_nodes = (*iter).size();
+		output.append(std::to_string(num_frames));
+		output.append("\n");
+		output.append(std::to_string(num_nodes));
+		output.append("\n");
+		for (iter; iter != keyframeList.end(); ++iter) {
+			RigTFormVector scene = (*iter);
+			for (int i = 0; i < scene.size(); ++i) {
+				RigTForm rigTForm = scene[i];
+				Cvec3 translation = rigTForm.getTranslation();
+				Quat rotation = rigTForm.getRotation();
+				for (int j = 0; j < 3; j++) {
+					output.append(std::to_string(translation[j]));
+					output.append(" ");
+				}
+				for (int k = 0; k < 4; k++) {
+					output.append(std::to_string(rotation[k]));
+					output.append(" ");
+				}
+				output.append("\n");
+			}
+		}
+		myfile << output;
+
+		myfile.close();
+		printf("Writing to animation.txt\n");
 	}
 }
 
@@ -759,9 +845,11 @@ static void keyboard(const unsigned char key, const int x, const int y) {
 	break;
   case 'i':
 	printf("i was pressed\n");
+	readFrameDataFromFile();
 	break;
   case 'w':
 	printf("w was pressed\n");
+	writeFrameDataToFile();
 	break;
   }
   glutPostRedisplay();
