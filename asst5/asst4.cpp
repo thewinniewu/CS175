@@ -6,6 +6,7 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
+#include <iostream>
 #include <cstddef>
 #include <vector>
 #include <string>
@@ -646,7 +647,7 @@ static void copyCurrentKeyframe() {
 
 static void deleteCurrentFrame() {
 	// if our stack is empty, 
-	if (g_currentKeyframe == keyframeList.end()) {
+	if (keyframeList.empty()) {
 		printf("there's no frame, nothing to delete\n");
 	}
 	else {
@@ -654,18 +655,14 @@ static void deleteCurrentFrame() {
 		
 		list<RigTFormVector>::iterator temp = g_currentKeyframe;
 		if (g_currentKeyframe == keyframeList.begin()) {
-			if (++g_currentKeyframe == keyframeList.end()){
-				g_currentKeyframe = keyframeList.end();
-			}
-			else {
-				++g_currentKeyframe;
+			if (++g_currentKeyframe == keyframeList.end()) {
+         g_currentKeyframe = keyframeList.end();
 			}
 		}
 		else {
 			--g_currentKeyframe;
 		}
 		
-
 		keyframeList.erase(temp);
 		
 		// update scene
@@ -832,13 +829,11 @@ static void readFrameDataFromFile() {
 				double cvec_double;
 				stream >> cvec_double;
 				translation[k] = cvec_double;
-				printf("%d ", cvec_double);
 			}
 			for (int l = 0; l < 4; l++) {
 				double quat_double;
 				stream >> quat_double;
 				rotation[l] = quat_double;
-				printf("%d ", quat_double);
 			}
 			printf("\n");
 			node.setTranslation(translation); 
@@ -864,10 +859,13 @@ static void writeFrameDataToFile() {
 		int num_frames = keyframeList.size();
 		list<RigTFormVector>::iterator iter = keyframeList.begin();
 		int num_nodes = (*iter).size();
-		output.append(std::to_string(num_frames));
-		output.append("\n");
-		output.append(std::to_string(num_nodes));
-		output.append("\n");
+    
+    std::ostringstream s;
+    s << num_frames
+      << "\n"
+      << num_nodes
+      << "\n";
+    output.append(s.str());
 		for (iter; iter != keyframeList.end(); ++iter) {
 			RigTFormVector scene = (*iter);
 			for (int i = 0; i < scene.size(); ++i) {
@@ -875,12 +873,16 @@ static void writeFrameDataToFile() {
 				Cvec3 translation = rigTForm.getTranslation();
 				Quat rotation = rigTForm.getRotation();
 				for (int j = 0; j < 3; j++) {
-					output.append(std::to_string(translation[j]));
-					output.append(" ");
+				  s.str(""); 
+          s.clear(); 
+          s << translation[j] << " ";
+          output.append(s.str());
 				}
 				for (int k = 0; k < 4; k++) {
-					output.append(std::to_string(rotation[k]));
-					output.append(" ");
+				  s.str(""); 
+          s.clear(); 
+          s << rotation[k] << " ";
+          output.append(s.str());
 				}
 				output.append("\n");
 			}
