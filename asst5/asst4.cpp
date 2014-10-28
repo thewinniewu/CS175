@@ -197,16 +197,15 @@ static shared_ptr<SgRbtNode> g_currentPickedRbtNode; // used later when you do p
 static int g_msBetweenKeyFrames = 2000; // 2 seconds between keyframes
 static int g_animateFramesPerSecond = 60; // frames to render per second
 static bool g_isPlayingAnimation = false; // whether or not animation is currently playing
-static int g_mostRecentPlayedKeyframe = 0;
 
 enum KeyframeId { ADVANCE = 0, RETREAT = 1 };
 typedef std::vector<RigTForm> RigTFormVector;
 list<RigTFormVector> keyframeList;  // list of RigTFormVector 
 list<RigTFormVector>::iterator g_currentKeyframe = keyframeList.begin(); // pointer to vector of RigTFormVector that represent the current frame 
 
-static list<RigTFormVector>::iterator g_currentPlayingFromKeyframe;
-static list<RigTFormVector>::iterator g_currentPlayingToKeyframe;
-
+list<RigTFormVector>::iterator g_currentPlayingFromKeyframe; // the frame we are interpolating from 
+list<RigTFormVector>::iterator g_currentPlayingToKeyframe; // the frame we are interpolating toward
+int g_mostRecentPlayedKeyframe = 0; // keep track of when to switch the above two variables in interpolation 
 
 
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
@@ -818,7 +817,20 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     << "p\t\tEnter picker mode\n"
     << "v\t\tCycle view\n"
     << "drag left mouse to rotate\n"
-    << "drag right or middle mouse to translate\n" << endl;
+    << "drag right or middle mouse to translate\n\n"
+    << "\t---ANIMATION CONTROLS---\n"
+    << "n\t\tMake new keyframe\n"
+    << "c\t\tCopy current keyframe\n"
+    << "u\t\tUpdate keyframe\n"
+    << "d\t\tDelete current keyframe\n" 
+    << ">\t\tGo to next keyframe\n"
+    << "<\t\tGo to previous keyframe\n"
+    << "w\t\tWrite keyframes to file\n"
+    << "i\t\tRead keyframes from file\n"
+    << "y\t\tPlay/Stop playing keyframes\n"
+    << "+\t\tSpeed up animation\n"
+    << "-\t\tSlow down animation\n"
+    << endl;
     break;
   case 's':
     glFlush();
