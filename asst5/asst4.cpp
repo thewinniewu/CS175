@@ -685,28 +685,66 @@ static void deleteCurrentFrame() {
 
 
 bool interpolateAndDisplay(float t) {
-  int keyframe1t = floor(t);
+  // get alpha for slerping and lerping 
   float alpha = t - floor(t);
   
   // get the current frame and the frame after the current frame 
-  list<SgRbtNodes>::iterator nextKeyframe = g_currentKeyframe;     
+  list<SgRbtNodes>::iterator thisKeyframe = keyframeList.begin(); 
+  list<SgRbtNodes>::iterator nextKeyframe = thisKeyframe;     
+  ++nextKeyframe;
 
-  //interpolate between the two
-  for (int i = 0; i < g_currentKeyframe 
-  // lerp translation and slerp rotation
+  // make a list for interpolations
+  vector<RigTForm> interpolations;
+
+  while (true) {
+    if (nextKeyframe == keyframeList.end())
+      break;
+    
+    //interpolate between the two
+    int size = (*thisKeyframe).size(); 
+    for (int i = 0; i < size; i++) { 
+    // lerp translation and slerp rotation
+      RigTForm interpolation = 
+        RigTForm(
+          lerp(
+            ((*thisKeyframe)[i]->getRbt()).getTranslation(),
+            ((*nextKeyframe)[i]->getRbt()).getTranslation(),
+            alpha
+          ),
+          slerp(
+            ((*thisKeyframe)[i]->getRbt()).getRotation(),
+            ((*nextKeyframe)[i]->getRbt()).getRotation(),
+            alpha
+          )
+        );
+      interpolations.push_back(interpolation); 
+    }
   
+    // move iterators
+    ++thisKeyframe;
+    ++nextKeyframe;
 
-  glutPostRedisplay();
+    // get current nodes in scene
+    SgRbtNodes current_scene; 
+	  dumpSgRbtNodes(g_world, current_scene);
+
+    // apply the transformation
+    for (int i = 0; i < current_scene.size(); i++) {
+      current_scene[i]->setRbt(interpolations[i]);  
+    }
+ 
+    glutPostRedisplay();
+  } 
   // return true when animation is done  
+  g_isPlayingAnimation = false; 
   return true;
-  
 }
 
 static void animateTimerCallback(int ms) {
   float t = (float) ms / (float) g_msBetweenKeyFrames;
 
-  bool endReached = interpolateAndDisplay(t);
-  if (!endReached) {
+  if (g_isPlayingAnimation) {
+          interpolateAndDisplay(t);
           glutTimerFunc(1000/g_animateFramesPerSecond,
                         animateTimerCallback,
                         ms + 1000/g_animateFramesPerSecond
@@ -729,7 +767,8 @@ static void controlAnimation() {
     g_isPlayingAnimation = true;
 
     // call animateTimerCallback(0)
-    
+    animateTimerCallback(0);
+
   } else {
     // animation is alrady playing, so stop 
     g_isPlayingAnimation = false; 
@@ -852,7 +891,6 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     printf("- was pressed\n"); 
     g_msBetweenKeyFrames = min(1000, g_msBetweenKeyFrames + 100);
     cout << "The new speed is: " << g_msBetweenKeyFrames << "ms between keyframes"; 
-
     break;
   }
   glutPostRedisplay();
