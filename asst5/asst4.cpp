@@ -31,6 +31,7 @@
 #include "glsupport.h"
 #include "geometrymaker.h"
 #include "arcball.h"
+  
 
 // from asst4-snippets
 #include "asstcommon.h"
@@ -194,10 +195,14 @@ static shared_ptr<SgRbtNode> g_currentPickedRbtNode; // used later when you do p
 
 // for keyframe animation
 typedef std::vector<std::tr1::shared_ptr<SgRbtNode> > SgRbtNodes;
-static shared_ptr<SgRbtNodes> g_currentKeyframe; // pointer to vector of SgRbtNodes that represent the current frame 
+shared_ptr<SgRbtNodes> g_currentKeyframe; // pointer to vector of SgRbtNodes that represent the current frame 
 list<SgRbtNodes> keyframeList;  // list of SgRbtNodes 
-// list<SgRbtNodes>::iterator iter = keyframeList.begin(); // iterator through the list
- 
+list<SgRbtNodes>::iterator iter = keyframeList.begin(); // iterator through the list
+
+static int g_msBetweenKeyFrames = 2000; // 2 seconds between keyframes
+static int g_animateFramesPerSecond = 60; // frames to render per second
+
+
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
 static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
 static RigTForm g_objectRbt[2] = {RigTForm(Cvec3(-1,0,0)), RigTForm(Cvec3(1,0,0))};
@@ -575,20 +580,25 @@ static void initializeNewKeyframe() {
 		printf("The current frame has not been initialized, creating a new keyframe\n");
 		// create a new keyframe from the beginning of the stack
 		keyframeList.push_back(new_keyframe);
+		iter = keyframeList.end();
 	}
 	else {
 		printf("creating new frame after the current keyframe\n");
+		// iter must always be where g_currentKeyframe is
+		keyframeList.insert(iter, new_keyframe);
+		/*
 		for (list<SgRbtNodes>::iterator iter = keyframeList.begin(), end = keyframeList.end(); iter != end; ++iter) {
 			if (*iter == *g_currentKeyframe) {
 				keyframeList.insert(++iter, new_keyframe);
 				break;
 			}
-		}
+		}*/
 	}
 	// copy scene graph rbt data to new key frame
 	dumpSgRbtNodes(g_world, new_keyframe);
 	// set current key frame to this new frame
-	*g_currentKeyframe = new_keyframe;
+  //TODO got rid of this for compile error	
+  //g_currentKeyframe = make_shared<SgRbtNodes>(new_keyframe);
 }
 
 static void copyCurrentKeyframe() {
@@ -598,7 +608,14 @@ static void copyCurrentKeyframe() {
 		printf("no key frames\n");
 	}
 	else {
-		// TODO: how to do? maybe declare a new class? 
+		// grab pointers to current scene data with the dump function, then copy our current key frame rbts there
+		SgRbtNodes current_scene; 
+		dumpSgRbtNodes(g_world, current_scene);
+		for (std::vector< shared_ptr<SgRbtNode> >::iterator iter1 = current_scene.begin(),
+			iter2 = (*g_currentKeyframe).begin(), end = current_scene.end(); iter1 != end; ++iter1, ++iter2) {
+			// set the rbt of the current scene to the rbt of the currentFrame
+			(**iter1).setRbt((**iter2).getRbt());
+		}
 	}
 }
 
@@ -639,8 +656,8 @@ static void deleteCurrentFrame() {
 }
 
 
-void interpolate(float t) {
-  int keyframe1 = floor(t);
+bool interpolateAndDisplay(float t) {
+  int keyframe1t = floor(t);
   float alpha = t - floor(t);
   
   // get the current frame and the frame after the current frame 
@@ -652,19 +669,35 @@ void interpolate(float t) {
 
 
   glutPostRedisplay();
+  return true;
 }
 
+static void animateTimerCallback(int ms) {
+  float t = (float) ms / (float) g_msBetweenKeyframes;
+
+  bool endReached = interpolateAndDisplay(t);
+  if (!endReached) {
+          glutTimerFunc(1000/g_animatedFramesPerSecond,
+                        animateTimerCallback,
+                        ms + 1000/g_animatedFramesPerSecond
+          );
+  } else {
+
+  }
+}
+
+// TODO: overhaul janky string system
 static void shiftKeyframe(char* direction) {
 	for (list<SgRbtNodes>::iterator iter = keyframeList.begin(), end = keyframeList.end(); iter != end; ++iter) {
 		if (*iter == *g_currentKeyframe) {
-			if (direction == "advance") {
+			if (strcmp(direction, "advance") == 0) {
 				++iter;
 				if (iter == keyframeList.end()) {
 					printf("Cannot move forward, reached end of stack\n");
 					return;
 				}
 			}
-			else if (direction == "retreat") {
+			else if (strcmp(direction, "retreat") == 0) {
 				if (iter == keyframeList.begin()) {
 					printf("Cannot move backwards, at beginning of stack\n");
 					return;
