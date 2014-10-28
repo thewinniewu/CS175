@@ -1,40 +1,36 @@
-CS175 Assignment 4 Submission
+CS175 Assignment 5 Submission
 
 Winnie Wu - weiwu@college.harvard.edu
 Jesse Chen - jesseyuanchen@college.harvard.edu
 
 Files included:
+  AUTHORS
+  Debug
+  LICENSE
+  Makefile
+  README.txt
   arcball.h
-  asst3.sdf
-  asst3.sln
-  asst3.v12.suo
-  asst3.vcxproj
-  asst3.vcxproj.filters
-  asst4-GL2.exe
-  asst4-GL3.exe
-  asst4-mac
   asst4-snippets.cpp
   asst4.cpp
+  asst5
+  asst5-GL2.exe
+  asst5-GL3.exe
   asstcommon.h
-  AUTHORS
   cvec.h
-  Debug
   drawer.h
   geometrymaker.h
   glsupport.cpp
   glsupport.h
-  LICENSE
-  Makefile
   matrix4.h
-  output.txt
   picker.cpp
   picker.h
   ppm.cpp
   ppm.h
   quat.h
-  README.txt
   rigtform.h
   scenegraph.cpp
+  scenegraph.h
+  sgutils.h
   scenegraph.h
   shaders/
     basic-gl2.vshader
@@ -48,36 +44,49 @@ Files included:
 
 Modified files from starter code:
   asst4.cpp
-  scenegraph.cpp
-  picker.cpp 
+  quat.h
+  rigtform.h
 
 Platform used:
-  Mac OS X 10.9.5
+  Mac OS X 10.10
 
 Compilation instructions:
   Run 'make' from the command line while in the main directory.
 
 Problem set requirements:
-  We followed the spec. We completed tasks 1 through 4; in task 1 we added the code from asst4-snippets.cpp 
-  to add the torso and right arms of the robot. In task 2 we wrote the necessary code for picker.cpp to allow
-  the user to select different parts of the robot. In task 3 we wrote the necessary code for scenegraph and 
-  modified our asst4.cpp code such that the user could actually move the robots. In task 4, we added the parts
-  of the robot as directed. We started with the solution set from asst3. 
+  We followed the spec. We completed tasks 1 through 3 and built off from our solution to asst4. 
+  In task1, we implemented basic keyframe infrastructure for the keys as described in the spec.
+  In task2, we added the mathematical equations for lerp and slerp (and helpers) in the quat and rigtform .h files
+  In task3, we added play functionality and interpolation with speed up and slow down as described in the spec.
 
 Design:
-  - Created a function getNodeForEye that takes an ObjId as input and returns the corresponding Node
-  - Used global struct ManipMode to keep track of the location of the arcball
-  - Chose to call certain specialized cases of functions (getting nodes) inline instead of creating 
-  auxiliary functions because they are part of the class
+  == TASK 1 == 
+  - We stored keyframes as lists of RigTForm vectors and made a new type RigTFormVector for this purpose
+  - RigTFormVectors are parallel to the SgRbtNode vector we get back from using the helper dump function from sgutils.h
+  - The list of keyframes is stored as a global 'keyframeList'
+  - We keep track of the current keyframe with a global g_currentKeyframe
+  - To handle '<' and '>' we made a new enum constants ADVANCE and RETREAT for quick comparison
+  - For read and write, we use a txt file. 
+    The first line of the file is the number of keyframes (k).
+    The second line of the file is the number of nodes per keyframe (n).
+    The following k sets of n lines is the numerical representation of the RigTForm for each node in that keyframe.
+      The first 3 numbers are the translational portion, the last 3 number describe rotation.
+    There is no break between keyframe sets in the file, our read function takes care of parsing based on k and n.
+   
+  == TASK 2 ==
+  - An equality (==) operator was added to quat.h to be used for conditional negation
+  - A power (pow) function was added to quat.h to be used for slerping
+  - Lerp and slerp were added as functions to rigtform.h
 
+  == TASK 3 ==
+  - The animation callback code from the spec was used
+  - 2 global iterators are used to denote the frames we are interpolating between
+  - Speed of animation and fps are both stored as globals
+  - There is a maximum speed of animation (100ms break between keyframes) 
+  - There is a minimum speed of animation (1000ms break between keyframes)
+  - Changing speed of animation goes by 100ms between keyframes at a time
+ 
 Usage:
   - Use 'h' to get help directions. 
   - All keyboard controls and mouse actions are as per spec guidelines. Also described in 'h'.
-  - The default when the program is opened is skycamera view with the worldview being manipulated.
-  - The sequence of viewing is red robot -> blue robot -> sky camera with 'v'. 
-  - Play around. Allows the user to press 'p' and left click on part of a robot, which moves the arcball
-  there and allows movement. Switching views brings you to the torso of the robot, from which you 
-  are allowed to view yourself and pick the other robot as well. 
- 
-
-
+  

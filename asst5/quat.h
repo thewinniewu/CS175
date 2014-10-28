@@ -86,6 +86,27 @@ public:
     return Cvec4(r[1], r[2], r[3], a[3]);
   }
 
+  bool operator == (const Quat& a) const {
+    return (q_[0] == a[0] && q_[1] == a[1] && q_[2] == a[2] && q_[3] == a[3]); 
+  }
+
+  Quat pow(double alpha) {
+    Cvec3 k_hat = Cvec3(q_[1], q_[2], q_[3]).normalize();
+
+    double w = q_[0];
+    double beta;
+    if (k_hat[0] != 0) 
+      beta = q_[1] / k_hat[0];
+    else if (k_hat[1] != 0)
+      beta = q_[2] / k_hat[1];
+    else
+      beta = q_[3] / k_hat[2];
+
+    double phi = atan2(beta, w); 
+
+    return Quat(cos(alpha * phi), k_hat * sin(alpha * phi));
+  }
+
   static Quat makeXRotation(const double ang) {
     Quat r;
     const double h = 0.5 * ang * CS175_PI/180;

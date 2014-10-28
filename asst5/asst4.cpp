@@ -31,6 +31,7 @@
 #include "glsupport.h"
 #include "geometrymaker.h"
 #include "arcball.h"
+  
 
 // from asst4-snippets
 #include "asstcommon.h"
@@ -197,11 +198,20 @@ static shared_ptr<SgRbtNode> g_skyNode, g_groundNode, g_robot1Node, g_robot2Node
 static shared_ptr<SgRbtNode> g_currentPickedRbtNode; // used later when you do pickingj
 
 // for keyframe animation
+static int g_msBetweenKeyFrames = 2000; // 2 seconds between keyframes
+static int g_animateFramesPerSecond = 60; // frames to render per second
+static bool g_isPlayingAnimation = false; // whether or not animation is currently playing
+
 enum KeyframeId { ADVANCE = 0, RETREAT = 1 };
 typedef std::vector<RigTForm> RigTFormVector;
 list<RigTFormVector> keyframeList;  // list of RigTFormVector 
 list<RigTFormVector>::iterator g_currentKeyframe = keyframeList.begin(); // pointer to vector of RigTFormVector that represent the current frame 
- 
+
+list<RigTFormVector>::iterator g_currentPlayingFromKeyframe; // the frame we are interpolating from 
+list<RigTFormVector>::iterator g_currentPlayingToKeyframe; // the frame we are interpolating toward
+int g_mostRecentPlayedKeyframe = 0; // keep track of when to switch the above two variables in interpolation 
+
+
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
 static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
 static RigTForm g_objectRbt[2] = {RigTForm(Cvec3(-1,0,0)), RigTForm(Cvec3(1,0,0))};
@@ -599,7 +609,7 @@ static void initializeNewKeyframe() {
 	}
 	// copy scene graph rbt data to new key frame		
 	
-	std::vector<std::tr1::shared_ptr<SgRbtNode>> RbtNodes;
+	std::vector<std::tr1::shared_ptr<SgRbtNode> > RbtNodes;
 	dumpSgRbtNodes(g_world, RbtNodes);
 	(*g_currentKeyframe).clear();
 	for (int i = 0; i < RbtNodes.size(); ++i) {
@@ -615,11 +625,12 @@ static void copyCurrentKeyframe() {
 	}
 	else {
 		// grab pointers to current scene data with the dump function, then copy our current key frame rbts there
-		std::vector<std::tr1::shared_ptr<SgRbtNode>> RbtNodes;
+		std::vector<std::tr1::shared_ptr<SgRbtNode> > RbtNodes;
 		dumpSgRbtNodes(g_world, RbtNodes);
 		
-		std::vector<shared_ptr<SgRbtNode>>::iterator iter1 = RbtNodes.begin();
+		std::vector<shared_ptr<SgRbtNode> >::iterator iter1 = RbtNodes.begin();
 		std::vector<RigTForm>::iterator iter2 = (*g_currentKeyframe).begin();
+
 		while (true) {
 			if (iter1 != RbtNodes.end() && iter2 != (*g_currentKeyframe).end()) {
 				(**iter1).setRbt(*iter2);
@@ -662,6 +673,106 @@ static void deleteCurrentFrame() {
 	}
 }
 
+
+bool interpolateAndDisplay(float t) {
+  // get alpha for slerping and lerping 
+  float alpha = t - floor(t);
+ 
+  int keyframe = floor(t);
+  if (keyframe == 0) {
+    g_currentPlayingFromKeyframe = keyframeList.begin();
+    g_currentPlayingToKeyframe = g_currentPlayingFromKeyframe;
+    ++g_currentPlayingToKeyframe;
+  }
+ 
+  // interpolate between the next pair of keyframes if we have passed them
+  if (keyframe != g_mostRecentPlayedKeyframe) {
+    g_mostRecentPlayedKeyframe = keyframe;
+    ++g_currentPlayingFromKeyframe; 
+    ++g_currentPlayingToKeyframe; 
+  }
+
+  // stop animation when we are done
+  if (g_currentPlayingToKeyframe == keyframeList.end()) {
+    g_isPlayingAnimation = false;
+    g_mostRecentPlayedKeyframe = 0;
+    return true;
+  }
+  
+  // make a list for interpolations
+  vector<RigTForm> interpolations;
+
+  //interpolate between the two
+  int size = (*g_currentPlayingFromKeyframe).size(); 
+  for (int i = 0; i < size; i++) { 
+    // lerp translation and slerp rotation
+    RigTForm interpolation = 
+      RigTForm(
+        lerp(
+          (*g_currentPlayingFromKeyframe)[i].getTranslation(),
+          (*g_currentPlayingToKeyframe)[i].getTranslation(),
+          alpha
+        ),
+        slerp(
+          (*g_currentPlayingFromKeyframe)[i].getRotation(),
+          (*g_currentPlayingToKeyframe)[i].getRotation(),
+          alpha
+        )
+      );
+    interpolations.push_back(interpolation); 
+  }
+ 
+  // get current nodes in scene
+	std::vector<std::tr1::shared_ptr<SgRbtNode> > current_nodes;
+	dumpSgRbtNodes(g_world, current_nodes);
+
+  // apply the transformation
+  for (int i = 0; i < current_nodes.size(); i++) {
+    current_nodes[i]->setRbt(interpolations[i]);  
+  }
+ 
+  // redraw scene 
+  glutPostRedisplay();
+
+  // the animation is not done, so return false
+  return false;
+} 
+
+static void animateTimerCallback(int ms) {
+  float t = (float) ms / (float) g_msBetweenKeyFrames;
+
+  bool endReached = interpolateAndDisplay(t);
+  if (!endReached) {
+          glutTimerFunc(1000/g_animateFramesPerSecond,
+                        animateTimerCallback,
+                        ms + 1000/g_animateFramesPerSecond
+          );
+  } else {
+    g_isPlayingAnimation = false; 
+  }
+}
+
+static void controlAnimation() {
+  if (!g_isPlayingAnimation) {
+    // check that there are 4 keyframes
+    if (keyframeList.size() < 4) {
+      cout << "Unable to start animation -- you only have "
+           << keyframeList.size()
+           << " keyframes, but we need at least 4!\n";
+      return;
+    }
+    // toggle global flag for animation play
+    g_isPlayingAnimation = true;
+
+    // call animateTimerCallback(0)
+    animateTimerCallback(0);
+
+  } else {
+    // animation is alrady playing, so stop 
+    g_isPlayingAnimation = false; 
+  }
+}
+
 static void shiftKeyframe(KeyframeId i) {
 	if (i == ADVANCE && g_currentKeyframe != keyframeList.end()) {
 		++g_currentKeyframe;
@@ -688,7 +799,7 @@ static void updateScene() {
 	}
 	// otherwise, copy the scene graph rbt to current frame 
 	else {
-		std::vector<std::tr1::shared_ptr<SgRbtNode>> RbtNodes;
+		std::vector<std::tr1::shared_ptr<SgRbtNode> > RbtNodes;
 		dumpSgRbtNodes(g_world, RbtNodes);
 		(*g_currentKeyframe).clear();
 		for (int i = 0; i < RbtNodes.size(); ++i) {
@@ -793,7 +904,20 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     << "p\t\tEnter picker mode\n"
     << "v\t\tCycle view\n"
     << "drag left mouse to rotate\n"
-    << "drag right or middle mouse to translate\n" << endl;
+    << "drag right or middle mouse to translate\n\n"
+    << "\t---ANIMATION CONTROLS---\n"
+    << "n\t\tMake new keyframe\n"
+    << "c\t\tCopy current keyframe\n"
+    << "u\t\tUpdate keyframe\n"
+    << "d\t\tDelete current keyframe\n" 
+    << ">\t\tGo to next keyframe\n"
+    << "<\t\tGo to previous keyframe\n"
+    << "w\t\tWrite keyframes to file\n"
+    << "i\t\tRead keyframes from file\n"
+    << "y\t\tPlay/Stop playing keyframes\n"
+    << "+\t\tSpeed up animation\n"
+    << "-\t\tSlow down animation\n"
+    << endl;
     break;
   case 's':
     glFlush();
@@ -811,38 +935,38 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     cerr << "Editing sky eye w.r.t. " << (g_activeCameraFrame == WORLD_SKY ? "world-sky frame\n" : "sky-sky frame\n") << endl;
     break;
   case 'p':
-	g_pickerMode = !g_pickerMode;
-	cout << "Picking mode: " << g_pickerMode << "\n";
-	break;
+	  g_pickerMode = !g_pickerMode;
+	  cout << "Picking mode: " << g_pickerMode << "\n";
+	  break;
   case ' ':
-	g_spaceDown = true;
-	break;
+	  g_spaceDown = true;
+	  break;
 
-// keyframe animation
+  // keyframe animation
   case 'c':
-	printf("c was pressed\n");
-	copyCurrentKeyframe();
-	break;
+	  printf("c was pressed\n");
+	  copyCurrentKeyframe();
+	  break;
   case 'u':
-	printf("u was pressed\n");
-	updateScene();
-	break;
+	  printf("u was pressed\n");
+	  updateScene();
+	  break;
   case '>':
-	printf("> was pressed\n");
-	shiftKeyframe(ADVANCE);
-	break;
+	  printf("> was pressed\n");
+	  shiftKeyframe(ADVANCE);
+	  break;
   case '<':
-	printf("< was pressed\n");
-	shiftKeyframe(RETREAT);
+	  printf("< was pressed\n");
+	  shiftKeyframe(RETREAT);
 	break;
   case 'd':
-	printf("d was pressed\n");
-	deleteCurrentFrame();
-	break;
+	  printf("d was pressed\n");
+	  deleteCurrentFrame();
+	  break;
   case 'n':
-	printf("n was pressed\n");
-	initializeNewKeyframe();
-	break;
+	  printf("n was pressed\n");
+	  initializeNewKeyframe();
+	  break;
   case 'i':
 	printf("i was pressed\n");
 	readFrameDataFromFile();
@@ -851,6 +975,20 @@ static void keyboard(const unsigned char key, const int x, const int y) {
 	printf("w was pressed\n");
 	writeFrameDataToFile();
 	break;
+  case 'y':
+    printf("y was pressed\n");
+    controlAnimation();
+    break;
+  case '+':
+    printf("+ was pressed\n");
+    g_msBetweenKeyFrames = max(100, g_msBetweenKeyFrames - 100);
+    cout << "The new speed is: " << g_msBetweenKeyFrames << "ms between keyframes\n"; 
+   break;
+  case '-':
+    printf("- was pressed\n"); 
+    g_msBetweenKeyFrames = min(1000, g_msBetweenKeyFrames + 100);
+    cout << "The new speed is: " << g_msBetweenKeyFrames << "ms between keyframes\n"; 
+    break;
   }
   glutPostRedisplay();
 }
