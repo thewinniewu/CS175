@@ -98,22 +98,6 @@ static double g_arcballScreenRadius = 100; // number of pixels
 static double g_arcballScale = 1;
 
 // asst-snippets
-/*
-static const int PICKING_SHADER = 2; // index of the picking shader is g_shaerFiles
-static const int g_numShaders = 3; // 3 shaders instead of 2
-static const char * const g_shaderFiles[g_numShaders][2] = {
-		{ "./shaders/basic-gl3.vshader", "./shaders/diffuse-gl3.fshader" },
-		{ "./shaders/basic-gl3.vshader", "./shaders/solid-gl3.fshader" },
-		{ "./shaders/basic-gl3.vshader", "./shaders/pick-gl3.fshader" }
-};
-static const char * const g_shaderFilesGl2[g_numShaders][2] = {
-		{ "./shaders/basic-gl2.vshader", "./shaders/diffuse-gl2.fshader" },
-		{ "./shaders/basic-gl2.vshader", "./shaders/solid-gl2.fshader" },
-		{ "./shaders/basic-gl2.vshader", "./shaders/pick-gl2.fshader" }
-};
-
-static vector<shared_ptr<ShaderState> > g_shaderStates; // our global shader states
-*/
 static shared_ptr<Material> g_redDiffuseMat,
                             g_blueDiffuseMat,
                             g_bumpFloorMat,
@@ -125,88 +109,13 @@ shared_ptr<Material> g_overridingMaterial;
 
 // --------- Geometry
 typedef SgGeometryShapeNode MyShapeNode;
-/*
-// Macro used to obtain relative offset of a field within a struct
-#define FIELD_OFFSET(StructType, field) ((GLvoid*)offsetof(StructType, field))
-
-// A vertex with floating point position and normal
-struct VertexPN {
-  Cvec3f p, n;
-
-  VertexPN() {}
-  VertexPN(float x, float y, float z,
-           float nx, float ny, float nz)
-    : p(x,y,z), n(nx, ny, nz)
-  {}
-
-  // Define copy constructor and assignment operator from GenericVertex so we can
-  // use make* functions from geometrymaker.h
-  VertexPN(const GenericVertex& v) {
-    *this = v;
-  }
-
-  VertexPN& operator = (const GenericVertex& v) {
-    p = v.pos;
-    n = v.normal;
-    return *this;
-  }
-};
-
-struct Geometry {
-  GlBufferObject vbo, ibo;
-  GlArrayObject vao;
-  int vboLen, iboLen;
-
-  Geometry(VertexPN *vtx, unsigned short *idx, int vboLen, int iboLen) {
-    this->vboLen = vboLen;
-    this->iboLen = iboLen;
-
-    // Now create the VBO and IBO
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexPN) * vboLen, vtx, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * iboLen, idx, GL_STATIC_DRAW);
-  }
-
-  void draw(const ShaderState& curSS) {
-	// bind the object's VAO
-	glBindVertexArray(vao);
-	
-    // Enable the attributes used by our shader
-    safe_glEnableVertexAttribArray(curSS.h_aPosition);
-    safe_glEnableVertexAttribArray(curSS.h_aNormal);
-
-    // bind vbo
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    safe_glVertexAttribPointer(curSS.h_aPosition, 3, GL_FLOAT, GL_FALSE, sizeof(VertexPN), FIELD_OFFSET(VertexPN, p));
-    safe_glVertexAttribPointer(curSS.h_aNormal, 3, GL_FLOAT, GL_FALSE, sizeof(VertexPN), FIELD_OFFSET(VertexPN, n));
-
-    // bind ibo
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-
-    // draw!
-    glDrawElements(GL_TRIANGLES, iboLen, GL_UNSIGNED_SHORT, 0);
-
-    // Disable the attributes used by our shader
-    safe_glDisableVertexAttribArray(curSS.h_aPosition);
-    safe_glDisableVertexAttribArray(curSS.h_aNormal);
-	
-	// disable VAO
-	glBindVertexArray(NULL);
-  }
-};
-
-typedef SgGeometryShapeNode<Geometry> MyShapeNode;
-*/
-// Vertex buffer and index buffer associated with the ground and cube geometry
+/// Vertex buffer and index buffer associated with the ground and cube geometry
 static shared_ptr<Geometry> g_ground, g_cube, g_sphere;
 
 // --------- Scene
 
-// from asst4-snippets
 static shared_ptr<SgRootNode> g_world;
-static shared_ptr<SgRbtNode> g_skyNode, g_groundNode, g_robot1Node, g_robot2Node;
+static shared_ptr<SgRbtNode> g_skyNode, g_groundNode, g_robot1Node, g_robot2Node, g_light1Node, g_light2Node;
 static shared_ptr<SgRbtNode> g_currentPickedRbtNode; // used later when you do pickingj
 
 // for keyframe animation
@@ -258,17 +167,7 @@ static void initGround() {
 
  makePlane(g_groundSize*2, vtx.begin(), idx.begin());
  g_ground.reset(new SimpleIndexedGeometryPNTBX(&vtx[0], &idx[0], vbLen, ibLen));
-  /*
-   * // A x-z plane at y = g_groundY of dimension [-g_groundSize, g_groundSize]^2
-  VertexPN vtx[4] = {
-    VertexPN(-g_groundSize, g_groundY, -g_groundSize, 0, 1, 0),
-    VertexPN(-g_groundSize, g_groundY,  g_groundSize, 0, 1, 0),
-    VertexPN( g_groundSize, g_groundY,  g_groundSize, 0, 1, 0),
-    VertexPN( g_groundSize, g_groundY, -g_groundSize, 0, 1, 0),
-  };
-  unsigned short idx[] = {0, 1, 2, 0, 2, 3};
-  g_ground.reset(new Geometry(&vtx[0], &idx[0], 4, 6));
-*/
+
 }
 
 static void initCubes() {
@@ -282,17 +181,6 @@ static void initCubes() {
   makeCube(1, vtx.begin(), idx.begin());
   g_cube.reset(new SimpleIndexedGeometryPNTBX(&vtx[0], &idx[0], vbLen, ibLen));
   
-  /*int ibLen, vbLen;
-  getCubeVbIbLen(vbLen, ibLen);
-
-
-  // Temporary storage for cube geometry
-  vector<VertexPN> vtx(vbLen);
-  vector<unsigned short> idx(ibLen);
-
-  makeCube(1, vtx.begin(), idx.begin());
-  g_cube.reset(new Geometry(&vtx[0], &idx[0], vbLen, ibLen));
-*/
 }
 
 static void initSphere() {
@@ -386,12 +274,6 @@ static void drawArcBall(Uniforms& uniforms) {
 
   g_arcballMat->draw(*g_sphere, uniforms);
 
-/*  safe_glUniform3f(curSS.h_uColor, 0.27, 0.82, 0.35); // set color
-
-  g_sphere->draw(curSS);
-
-  // switch back to solid mode
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);*/
 }
 
 static void drawStuff(bool picking) {
@@ -410,15 +292,12 @@ static void drawStuff(bool picking) {
   const RigTForm eyeRbt = getPathAccumRbt(g_world, getNodeForEye(g_activeEye));
   const RigTForm invEyeRbt = inv(eyeRbt);
 
-  const Cvec3 eyeLight1 = Cvec3(invEyeRbt * Cvec4(g_light1, 1));
-  const Cvec3 eyeLight2 = Cvec3(invEyeRbt * Cvec4(g_light2, 1));
+  const Cvec3 eyeLight1 = getPathAccumRbt(g_world, g_light1Node).getTranslation();
+  const Cvec3 eyeLight2 = getPathAccumRbt(g_world, g_light2Node).getTranslation();
   
   uniforms.put("uLight", eyeLight1);
   uniforms.put("uLight2", eyeLight2);
   
-  //safe_glUniform3f(uniforms.h_uLight, eyeLight1[0], eyeLight1[1], eyeLight1[2]);
-  //safe_glUniform3f(uniforms.h_uLight2, eyeLight2[0], eyeLight2[1], eyeLight2[2]);
-
   if (!picking) {
 	  Drawer drawer(invEyeRbt, uniforms);
 	  g_world->accept(drawer);
@@ -1078,17 +957,6 @@ static void initGLState() {
   if (!g_Gl2Compatible)
     glEnable(GL_FRAMEBUFFER_SRGB);
 }
-/*
-static void initShaders() {
-  g_shaderStates.resize(g_numShaders);
-  for (int i = 0; i < g_numShaders; ++i) {
-    if (g_Gl2Compatible)
-      g_shaderStates[i].reset(new ShaderState(g_shaderFilesGl2[i][0], g_shaderFilesGl2[i][1]));
-    else
-      g_shaderStates[i].reset(new ShaderState(g_shaderFiles[i][0], g_shaderFiles[i][1]));
-  }
-}
-*/
 
 static void initMaterials() {
   // Create some prototype materials
@@ -1214,10 +1082,27 @@ static void initScene() {
 	constructRobot(g_robot1Node, g_redDiffuseMat); // a Red robot
 	constructRobot(g_robot2Node, g_blueDiffuseMat); // a Blue robot
 
+  /* lights */
+  Cvec3 light1_pos = Cvec3(4.5, 3.0, 5.0);
+  Cvec3 light2_pos = Cvec3(-4.5, 0, -5.0);
+
+  g_light1Node.reset(new SgRbtNode(RigTForm(light1_pos)));
+  g_light1Node->addChild(shared_ptr<MyShapeNode>(
+    new MyShapeNode(g_sphere, g_lightMat, Cvec3(0, 0, 0))));
+
+  g_light2Node.reset(new SgRbtNode(RigTForm(light2_pos)));
+  g_light2Node->addChild(shared_ptr<MyShapeNode>(
+    new MyShapeNode(g_sphere, g_lightMat, Cvec3(0, 0, 0))));
+
 	g_world->addChild(g_skyNode);
 	g_world->addChild(g_groundNode);
-	g_world->addChild(g_robot1Node);
+
+  g_world->addChild(g_light1Node);
+  g_world->addChild(g_light2Node);
+
+  g_world->addChild(g_robot1Node);
 	g_world->addChild(g_robot2Node);
+  
 }
 
 int main(int argc, char * argv[]) {
