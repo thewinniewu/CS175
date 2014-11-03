@@ -128,10 +128,11 @@ typedef std::vector<RigTForm> RigTFormVector;
 list<RigTFormVector> keyframeList;  // list of RigTFormVector 
 list<RigTFormVector>::iterator g_currentKeyframe = keyframeList.begin(); // pointer to vector of RigTFormVector that represent the current frame 
 
+list<RigTFormVector>::iterator g_previousPlayingFromKeyframe; // the frame before the frame we are interpolating from
 list<RigTFormVector>::iterator g_currentPlayingFromKeyframe; // the frame we are interpolating from 
 list<RigTFormVector>::iterator g_currentPlayingToKeyframe; // the frame we are interpolating toward
+list<RigTFormVector>::iterator g_followingPlayingToKeyframe; // the frame after the frame we are interpolating from 
 int g_mostRecentPlayedKeyframe = 0; // keep track of when to switch the above two variables in interpolation 
-
 
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two lights positions in world space
 static RigTForm g_skyRbt = RigTForm(Cvec3(0.0, 0.25, 4.0));
@@ -598,11 +599,105 @@ static void deleteCurrentFrame() {
 	}
 }
 
+static RigTForm evaluateBezier(RigTForm from, RigTForm to, RigTForm d, RigTForm e, float alpha) {
+	Cvec3 f_t = lerp(from.getTranslation(), d.getTranslation(), alpha);
+	Cvec3 g_t = lerp(d.getTranslation(), e.getTranslation(), alpha);
+	Cvec3 h_t = lerp(e.getTranslation(), to.getTranslation(), alpha);
+	Cvec3 m_t = lerp(f_t, g_t, alpha);
+	Cvec3 n_t = lerp(g_t, h_t, alpha);
+	Cvec3 c_t = lerp(m_t, n_t, alpha);
+
+	Quat f_q = slerp(from.getRotation(), d.getRotation(), alpha);
+	Quat g_q = slerp(d.getRotation(), e.getRotation(), alpha);
+	Quat h_q = slerp(e.getRotation(), to.getRotation(), alpha);
+	Quat m_q = slerp(f_q, g_q, alpha);
+	Quat n_q = slerp(g_q, h_q, alpha);
+	Quat c_q = slerp(m_q, n_q, alpha);
+
+	return RigTForm(c_t, c_q);
+}
+
+static RigTForm evaluateCatmull_Rom(RigTForm prev, RigTForm from, RigTForm to, RigTForm post, float alpha) {
+	// TODO: sanity check for quat negation if first coordinate of the part of D is negative
+	Cvec3 BC_CvecD = (to.getTranslation() - prev.getTranslation()) * (1 / 6) + from.getTranslation();
+	Cvec3 BC_CvecE = (post.getTranslation() - from.getTranslation()) * (-1 / 6) + to.getTranslation();
+	
+	//Quat d_pow = to.getRotation() * inv(prev.getRotation());
+	//Quat e_pow = post.getRotation() * inv(from.getRotation());
+	/*
+	if (d_pow[0] < 0) {
+		d_pow = d_pow * (-1);
+		printf("%i", d_pow[0]);
+	}*/
+
+	//Quat BC_QuatD = (to.getRotation() * inv(prev.getRotation())).pow(1 / 6) * from.getRotation();
+	//Quat BC_QuatE = (post.getRotation() * inv(from.getRotation())).pow(-1 / 6) * to.getRotation();
+	//Quat BC_QuatD = d_pow.pow(1 / 6) * from.getRotation();
+	//Quat BC_QuatE = e_pow.pow(-1 / 6) * to.getRotation();
+	
+	Quat BC_QuatD = Quat(1, 0, 0, 0);
+	Quat BC_QuatE = Quat(1, 0, 0, 0);
+	RigTForm BC_D = RigTForm(BC_CvecD, BC_QuatD);
+	RigTForm BC_E = RigTForm(BC_CvecE, BC_QuatE);
+
+	return evaluateBezier(from, to, BC_D, BC_E, alpha);
+}
 
 bool interpolateAndDisplay(float t) {
+
   // get alpha for slerping and lerping 
   float alpha = t - floor(t);
- 
+
+  int keyframe = floor(t);
+  
+  if (keyframe == 0) {
+	  g_previousPlayingFromKeyframe = keyframeList.begin();
+
+	  // for Catmull Rom we begin interpolating from the second keyframe
+	  g_currentPlayingFromKeyframe = keyframeList.begin();
+	  ++g_currentPlayingFromKeyframe;
+
+	  g_currentPlayingToKeyframe = g_currentPlayingFromKeyframe;
+	  ++g_currentPlayingToKeyframe;
+
+	  // for Catmull Rom we keep track of the keyframe after the frame we're playing to
+	  g_followingPlayingToKeyframe = g_currentPlayingToKeyframe;
+	  ++g_followingPlayingToKeyframe;
+  }
+
+  // interpolate between the next pair of keyframes if we have passed them
+  if (keyframe != g_mostRecentPlayedKeyframe) {
+	  g_mostRecentPlayedKeyframe = keyframe;
+	  ++g_previousPlayingFromKeyframe;
+	  ++g_currentPlayingFromKeyframe;
+	  ++g_currentPlayingToKeyframe;
+	  ++g_followingPlayingToKeyframe;
+  }
+
+  // get the second to last keyframe
+  list<RigTFormVector>::iterator secondToLastKeyframe = keyframeList.end();
+  --secondToLastKeyframe;
+  --secondToLastKeyframe;
+
+  // stop animation when we reach the second to last keyframe
+  if (g_currentPlayingToKeyframe == secondToLastKeyframe) {
+	  g_isPlayingAnimation = false;
+	  g_mostRecentPlayedKeyframe = 0;
+	  return true;
+  }
+
+  // make a list for interpolations
+  vector<RigTForm> interpolations;
+
+  //interpolate between the two
+  int size = (*g_currentPlayingFromKeyframe).size();
+  for (int i = 0; i < size; i++) {
+	  // Catmull Rom Interpolation
+	  RigTForm interpolation = evaluateCatmull_Rom((*g_previousPlayingFromKeyframe)[i], 
+		  (*g_currentPlayingFromKeyframe)[i], (*g_currentPlayingToKeyframe)[i], (*g_followingPlayingToKeyframe)[i], alpha);
+	  interpolations.push_back(interpolation);
+  }
+  /*
   int keyframe = floor(t);
   if (keyframe == 0) {
     g_currentPlayingFromKeyframe = keyframeList.begin();
@@ -645,7 +740,7 @@ bool interpolateAndDisplay(float t) {
         )
       );
     interpolations.push_back(interpolation); 
-  }
+  }*/
  
   // get current nodes in scene
 	std::vector<std::tr1::shared_ptr<SgRbtNode> > current_nodes;

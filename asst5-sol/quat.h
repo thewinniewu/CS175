@@ -64,6 +64,10 @@ public:
     return Quat(*this) += a;
   }
 
+  Quat operator - () const {
+    return Quat(-q_[0], -q_[1], -q_[2], -q_[3]);
+  }
+
   Quat operator - (const Quat& a) const {
     return Quat(*this) -= a;
   }
@@ -84,28 +88,6 @@ public:
   Cvec4 operator * (const Cvec4& a) const {
     const Quat r = *this * (Quat(0, a[0], a[1], a[2]) * inv(*this));
     return Cvec4(r[1], r[2], r[3], a[3]);
-  }
-
-  bool operator == (const Quat& a) const {
-    return (q_[0] == a[0] && q_[1] == a[1] && q_[2] == a[2] && q_[3] == a[3]); 
-  }
-
-  Quat pow(double alpha) {
-	// printf("%d %d %d %d", q_[0], q_[1], q_[2], q_[3]);
-    Cvec3 k_hat = Cvec3(q_[1], q_[2], q_[3]).normalize();
-
-    double w = q_[0];
-    double beta;
-    if (k_hat[0] != 0) 
-      beta = q_[1] / k_hat[0];
-    else if (k_hat[1] != 0)
-      beta = q_[2] / k_hat[1];
-    else
-      beta = q_[3] / k_hat[2];
-	  
-    double phi = atan2(beta, w); 
-
-    return normalize(Quat(cos(alpha * phi), k_hat * sin(alpha * phi)));
   }
 
   static Quat makeXRotation(const double ang) {
@@ -174,6 +156,29 @@ inline Matrix4 quatToMatrix(const Quat& q) {
 
   assert(isAffine(r));
   return r;
+}
+
+inline Quat shortRotation(const Quat& q) {
+  return q[0] < 0 ? -q : q;
+}
+
+inline Quat pow(const Quat& q, double exponent) {
+  // normalize to unit quaternion just to make sure
+  Cvec4 v = normalize(Cvec4(q[0], q[1], q[2], q[3]));
+
+  double sinPhi = std::sqrt(v[1] * v[1] + v[2] * v[2] + v[3] * v[3]);
+  double phi = std::atan2(sinPhi, v[0]);
+
+  // return identity if angle is really small to avoid divide by sinPhi
+  if (std::abs(phi) < CS175_EPS)
+    return Quat();
+  phi *= exponent;
+  double m = std::sin(phi) / sinPhi;
+  return Quat(std::cos(phi), v[1] * m, v[2] * m, v[3] * m);
+}
+
+inline Quat slerp(const Quat& q0, const Quat& q1, const double t) {
+  return pow(shortRotation(q1 * inv(q0)), t) * q0;
 }
 
 #endif
