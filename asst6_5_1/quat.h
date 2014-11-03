@@ -133,6 +133,14 @@ inline Quat inv(const Quat& q) {
   return Quat(q(0), -q(1), -q(2), -q(3)) * (1.0/n);
 }
 
+
+inline Quat cn(Quat q) {
+	if (q[0] < 0) {
+		return Quat(q[0] * -1, q[1] * -1, q[2] * -1, q[3] * -1);
+	}
+	return q;
+}
+
 inline Quat normalize(const Quat& q) {
   return q / std::sqrt(norm2(q));
 }
