@@ -645,7 +645,7 @@ static RigTForm evaluateCatmull_Rom(RigTForm prev, RigTForm from, RigTForm to, R
 //	Quat BC_QuatD = Quat(1, 0, 0, 0);
 //	Quat BC_QuatE = Quat(1, 0, 0, 0);
 
-  RigTForm BC_D = RigTForm(BC_CvecD, BC_QuatD);
+    RigTForm BC_D = RigTForm(BC_CvecD, BC_QuatD);
 	RigTForm BC_E = RigTForm(BC_CvecE, BC_QuatE);
 
 	return evaluateBezier(from, to, BC_D, BC_E, alpha);
