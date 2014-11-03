@@ -58,7 +58,7 @@ Problem set requirements:
   In Assignment 6, we replaced our interpolation from Assignment 5 with Catmull-Rom interpolation for smooth animation.
   In Assignment 6.5, we completed tasks 1 and 2 (Material Infrastructure and Bump Mapping).
   In task 1, we implement the code infrastructure fo different materials. 
-  In task 2, we made the light movable and increased the resolution of our geometry.
+  In task 2, we made the light movable and read in the map bump info
 
 Design:
   == Assignment 6 == 
@@ -82,7 +82,7 @@ Design:
   == Assignment 6.5 Part 2 ==
   - We implemented a bump mapping to improve the quality of our graphics. 
   - We stored the lights as Transform nodes to let us move them 
-  - We changed the normal fragment shader to allow for high resolution 
+  - We changed the normal fragment shader to read in the bump information and use them as the normals 
  
 Usage:
   - Use 'h' to get help directions. 

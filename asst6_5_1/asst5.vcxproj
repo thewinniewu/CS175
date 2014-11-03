@@ -13,26 +13,39 @@
   <ItemGroup>
     <ClInclude Include="arcball.h" />
     <ClInclude Include="cvec.h" />
+    <ClInclude Include="geometry.h" />
     <ClInclude Include="geometrymaker.h" />
     <ClInclude Include="glsupport.h" />
+    <ClInclude Include="material.h" />
     <ClInclude Include="matrix4.h" />
     <ClInclude Include="ppm.h" />
     <ClInclude Include="quat.h" />
+    <ClInclude Include="renderstates.h" />
     <ClInclude Include="rigtform.h" />
     <ClInclude Include="scenegraph.h" />
     <ClInclude Include="picker.h" />
     <ClInclude Include="asstcommon.h" />
     <ClInclude Include="drawer.h" />
     <ClInclude Include="sgutils.h" />
+    <ClInclude Include="texture.h" />
+    <ClInclude Include="uniforms.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="asst5.cpp" />
+    <ClCompile Include="asst6_5.cpp" />
+    <ClCompile Include="geometry.cpp" />
     <ClCompile Include="glsupport.cpp" />
+    <ClCompile Include="material.cpp" />
     <ClCompile Include="picker.cpp" />
     <ClCompile Include="ppm.cpp" />
+    <ClCompile Include="renderstates.cpp" />
     <ClCompile Include="scenegraph.cpp" />
+    <ClCompile Include="texture.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\asst6_5\shaders\normal-gl2.fshader" />
+    <None Include="..\asst6_5\shaders\normal-gl2.vshader" />
+    <None Include="..\asst6_5\shaders\normal-gl3.fshader" />
+    <None Include="..\asst6_5\shaders\normal-gl3.vshader" />
     <None Include="shaders\basic-gl2.vshader" />
     <None Include="shaders\basic-gl3.vshader" />
     <None Include="shaders\diffuse-gl2.fshader" />

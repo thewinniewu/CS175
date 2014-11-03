@@ -49,6 +49,21 @@
     <ClInclude Include="sgutils.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="geometry.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="material.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="renderstates.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="texture.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="uniforms.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="glsupport.cpp">
@@ -63,7 +78,19 @@
     <ClCompile Include="picker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="asst5.cpp">
+    <ClCompile Include="asst6_5.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="geometry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="material.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="renderstates.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="texture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -90,6 +117,18 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="shaders\pick-gl3.fshader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\asst6_5\shaders\normal-gl2.fshader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\asst6_5\shaders\normal-gl2.vshader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\asst6_5\shaders\normal-gl3.fshader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\asst6_5\shaders\normal-gl3.vshader">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
