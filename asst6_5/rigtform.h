@@ -88,7 +88,7 @@ inline Quat slerp(Quat q0, Quat q1, double alpha) {
   if (q0 == q1) {
     return q0;
   }
-  return cn(q1 * inv(q0)).pow(alpha) * q0;
+  return cn(q1 * inv(q0)).quat_pow(alpha) * q0;
 }
 
 #endif

@@ -622,21 +622,21 @@ static RigTForm evaluateCatmull_Rom(RigTForm prev, RigTForm from, RigTForm to, R
 	Cvec3 BC_CvecD = (to.getTranslation() - prev.getTranslation()) * (1 / 6) + from.getTranslation();
 	Cvec3 BC_CvecE = (post.getTranslation() - from.getTranslation()) * (-1 / 6) + to.getTranslation();
 	
-	//Quat d_pow = to.getRotation() * inv(prev.getRotation());
-	//Quat e_pow = post.getRotation() * inv(from.getRotation());
-	/*
+	Quat d_pow = to.getRotation() * inv(prev.getRotation());
+	Quat e_pow = post.getRotation() * inv(from.getRotation());
+
 	if (d_pow[0] < 0) {
 		d_pow = d_pow * (-1);
 		printf("%i", d_pow[0]);
-	}*/
+	}
 
-	//Quat BC_QuatD = (to.getRotation() * inv(prev.getRotation())).pow(1 / 6) * from.getRotation();
-	//Quat BC_QuatE = (post.getRotation() * inv(from.getRotation())).pow(-1 / 6) * to.getRotation();
-	//Quat BC_QuatD = d_pow.pow(1 / 6) * from.getRotation();
-	//Quat BC_QuatE = e_pow.pow(-1 / 6) * to.getRotation();
+	//Quat BC_QuatD = (to.getRotation() * inv(prev.getRotation())).quat_pow(1 / 6) * from.getRotation();
+	//Quat BC_QuatE = (post.getRotation() * inv(from.getRotation())).quat_pow(-1 / 6) * to.getRotation();
+	Quat BC_QuatD = d_pow.quat_pow(1 / 6) * from.getRotation();
+	Quat BC_QuatE = e_pow.quat_pow(-1 / 6) * to.getRotation();
 	
-	Quat BC_QuatD = Quat(1, 0, 0, 0);
-	Quat BC_QuatE = Quat(1, 0, 0, 0);
+	//Quat BC_QuatD = Quat(1, 0, 0, 0);
+	//Quat BC_QuatE = Quat(1, 0, 0, 0);
 	RigTForm BC_D = RigTForm(BC_CvecD, BC_QuatD);
 	RigTForm BC_E = RigTForm(BC_CvecE, BC_QuatE);
 
