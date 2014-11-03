@@ -624,11 +624,11 @@ static RigTForm evaluateCatmull_Rom(RigTForm prev, RigTForm from, RigTForm to, R
 	
 	Quat d_pow = to.getRotation() * inv(prev.getRotation());
 	Quat e_pow = post.getRotation() * inv(from.getRotation());
-
+	/*
 	if (d_pow[0] < 0) {
 		d_pow = d_pow * (-1);
 		printf("%i", d_pow[0]);
-	}
+	}*/
 
 	//Quat BC_QuatD = (to.getRotation() * inv(prev.getRotation())).quat_pow(1 / 6) * from.getRotation();
 	//Quat BC_QuatE = (post.getRotation() * inv(from.getRotation())).quat_pow(-1 / 6) * to.getRotation();
