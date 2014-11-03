@@ -100,23 +100,23 @@ public:
 	}*/
 	// Cvec3 k_hat = normalize(test);
 
-    // double w = q_[0];
-	// double beta = sqrt(pow(1 - w, 2.0));
-	/*
+    double w = q_[0];
+	//double beta = sqrt(pow(1 - w, 2.0));
+	double beta;
     if (k_hat[0] != 0) 
       beta = q_[1] / k_hat[0];
     else if (k_hat[1] != 0)
       beta = q_[2] / k_hat[1];
     else
       beta = q_[3] / k_hat[2];
-	*/
+	
     // double phi = atan2(beta, w); 
 	double phi = acos(q_[0]) * 2;
 	if (abs(phi) < CS175_EPS) {
 		return Quat();
 	}
-
-    return normalize(Quat(cos(alpha * phi / 2), k_hat * sin(alpha * phi / 2) / sin(phi / 2)));
+	return Quat(cos(alpha * phi), k_hat * sin(alpha * phi));
+    //return normalize(Quat(cos(alpha * phi / 2), k_hat * sin(alpha * phi / 2) / sin(phi / 2)));
   }
 
   static Quat makeXRotation(const double ang) {
