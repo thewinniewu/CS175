@@ -194,43 +194,43 @@ static shared_ptr<SgRbtNode> g_currentCameraNode;
 static shared_ptr<SgRbtNode> g_currentPickedRbtNode;
 
 
-static RigTForm evaluateBezier(RigTForm from, RigTForm to, RigTForm d, RigTForm e, double alpha) {
-	Cvec3 f_t = lerp(from.getTranslation(), d.getTranslation(), alpha);
-	Cvec3 g_t = lerp(d.getTranslation(), e.getTranslation(), alpha);
-	Cvec3 h_t = lerp(e.getTranslation(), to.getTranslation(), alpha);
-	Cvec3 m_t = lerp(f_t, g_t, alpha);
-	Cvec3 n_t = lerp(g_t, h_t, alpha);
-	Cvec3 c_t = lerp(m_t, n_t, alpha);
+static RigTForm evaluateBezier(RigTForm f0, RigTForm f1, RigTForm d, RigTForm e, double time) {
+	Cvec3 f_t = lerp(f0.getTranslation(), d.getTranslation(), time);
+	Cvec3 g_t = lerp(d.getTranslation(), e.getTranslation(), time);
+	Cvec3 h_t = lerp(e.getTranslation(), f1.getTranslation(), time);
+	Cvec3 m_t = lerp(f_t, g_t, time);
+	Cvec3 n_t = lerp(g_t, h_t, time);
+	Cvec3 c_t = lerp(m_t, n_t, time);
 
-	Quat f_q = slerp(from.getRotation(), d.getRotation(), alpha);
-	Quat g_q = slerp(d.getRotation(), e.getRotation(), alpha);
-	Quat h_q = slerp(e.getRotation(), to.getRotation(), alpha);
-	Quat m_q = slerp(f_q, g_q, alpha);
-	Quat n_q = slerp(g_q, h_q, alpha);
-	Quat c_q = slerp(m_q, n_q, alpha);
+	Quat f_q = slerp(f0.getRotation(), d.getRotation(), time);
+	Quat g_q = slerp(d.getRotation(), e.getRotation(), time);
+	Quat h_q = slerp(e.getRotation(), f1.getRotation(), time);
+	Quat m_q = slerp(f_q, g_q, time);
+	Quat n_q = slerp(g_q, h_q, time);
+	Quat c_q = slerp(m_q, n_q, time);
 
 	return RigTForm(c_t, c_q);
 }
 
-static RigTForm evaluateCatmull_Rom(RigTForm prev, RigTForm from, RigTForm to, RigTForm post, double alpha) {
+static RigTForm evaluateCatmull_Rom(RigTForm f_1, RigTForm f0, RigTForm f1, RigTForm f2, double time) {
 	
-	Cvec3 BC_CvecD = (to.getTranslation() - prev.getTranslation()) * (1 / 6) + from.getTranslation();
-	Cvec3 BC_CvecE = (post.getTranslation() - from.getTranslation()) * (-1 / 6) + to.getTranslation();
+	Cvec3 BC_CvecD = (f1.getTranslation() - f_1.getTranslation()) * (1 / 6) + f0.getTranslation();
+	Cvec3 BC_CvecE = (f2.getTranslation() - f0.getTranslation()) * (-1 / 6) + f1.getTranslation();
 
-	Quat d_pow = to.getRotation() * inv(prev.getRotation());
-	Quat e_pow = post.getRotation() * inv(from.getRotation());
+	Quat d_pow = f1.getRotation() * inv(f_1.getRotation());
+	Quat e_pow = f2.getRotation() * inv(f0.getRotation());
 
 	if (d_pow[0] < 0) {
 		d_pow = cn(d_pow);
 	}
 
-	Quat BC_QuatD = pow(d_pow, 1.0 / 6.0) * from.getRotation();
-	Quat BC_QuatE = pow(e_pow, -1.0 / 6.0) * to.getRotation();
+	Quat BC_QuatD = pow(d_pow, 1.0 / 6.0) * f0.getRotation();
+	Quat BC_QuatE = pow(e_pow, -1.0 / 6.0) * f1.getRotation();
 
 	RigTForm BC_D = RigTForm(BC_CvecD, BC_QuatD);
 	RigTForm BC_E = RigTForm(BC_CvecE, BC_QuatE);
 
-	return evaluateBezier(from, to, BC_D, BC_E, alpha);
+	return evaluateBezier(f0, f1, BC_D, BC_E, time);
 }
 class Animator {
 public:
