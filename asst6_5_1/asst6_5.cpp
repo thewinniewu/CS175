@@ -554,6 +554,7 @@ static void drawStuff(bool picking) {
     Picker picker(invEyeRbt, uniforms);
     g_overridingMaterial = g_pickingMat;
     g_world->accept(picker);
+    g_overridingMaterial.reset(); 
     glFlush();
     g_currentPickedRbtNode = picker.getRbtNodeAtXY(g_mouseClickX, g_mouseClickY);
     if (g_currentPickedRbtNode == g_groundNode)
