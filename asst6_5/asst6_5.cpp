@@ -619,9 +619,13 @@ static RigTForm evaluateBezier(RigTForm from, RigTForm to, RigTForm d, RigTForm 
 
 static RigTForm evaluateCatmull_Rom(RigTForm prev, RigTForm from, RigTForm to, RigTForm post, float alpha) {
 	// TODO: sanity check for quat negation if first coordinate of the part of D is negative
-	Cvec3 BC_CvecD = (to.getTranslation() - prev.getTranslation()) * (1 / 6) + from.getTranslation();
-	Cvec3 BC_CvecE = (post.getTranslation() - from.getTranslation()) * (-1 / 6) + to.getTranslation();
-	
+	Cvec3 BC_CvecD = (to.getTranslation() - prev.getTranslation()) * (1.0 / 6.0) + from.getTranslation();
+	Cvec3 BC_CvecE = (post.getTranslation() - from.getTranslation()) * (-1.0 / 6.0) + to.getTranslation();
+  
+  Quat q = prev.getRotation();
+  cout << "GETPREVROTATION: " << q[0] << q[1] << q[2] << q[3] << endl;
+
+
 	Quat d_pow = cn(to.getRotation() * inv(prev.getRotation()));
 	Quat e_pow = post.getRotation() * inv(from.getRotation());
   cout << "=======\n"; 
@@ -635,8 +639,8 @@ static RigTForm evaluateCatmull_Rom(RigTForm prev, RigTForm from, RigTForm to, R
 
 	//Quat BC_QuatD = (to.getRotation() * inv(prev.getRotation())).quat_pow(1 / 6) * from.getRotation();
 	//Quat BC_QuatE = (post.getRotation() * inv(from.getRotation())).quat_pow(-1 / 6) * to.getRotation();
-	Quat BC_QuatD = d_pow.quat_pow(1 / 6) * from.getRotation();
-	Quat BC_QuatE = e_pow.quat_pow(-1 / 6) * to.getRotation();
+	Quat BC_QuatD = d_pow.quat_pow(1.0 / 6.0) * from.getRotation();
+	Quat BC_QuatE = e_pow.quat_pow(-1.0 / 6.0) * to.getRotation();
 	
 //	Quat BC_QuatD = Quat(1, 0, 0, 0);
 //	Quat BC_QuatE = Quat(1, 0, 0, 0);
@@ -678,13 +682,8 @@ bool interpolateAndDisplay(float t) {
 	  ++g_followingPlayingToKeyframe;
   }
 
-  // get the second to last keyframe
-  list<RigTFormVector>::iterator secondToLastKeyframe = keyframeList.end();
-  --secondToLastKeyframe;
-  --secondToLastKeyframe;
-
   // stop animation when we reach the second to last keyframe
-  if (g_currentPlayingToKeyframe == secondToLastKeyframe) {
+  if (g_followingPlayingToKeyframe == keyframeList.end()) { 
 	  g_isPlayingAnimation = false;
 	  g_mostRecentPlayedKeyframe = 0;
 	  return true;
