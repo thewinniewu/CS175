@@ -622,11 +622,14 @@ static RigTForm evaluateCatmull_Rom(RigTForm prev, RigTForm from, RigTForm to, R
 	Cvec3 BC_CvecD = (to.getTranslation() - prev.getTranslation()) * (1 / 6) + from.getTranslation();
 	Cvec3 BC_CvecE = (post.getTranslation() - from.getTranslation()) * (-1 / 6) + to.getTranslation();
 	
-	Quat d_pow = to.getRotation() * inv(prev.getRotation());
+	Quat d_pow = cn(to.getRotation() * inv(prev.getRotation()));
 	Quat e_pow = post.getRotation() * inv(from.getRotation());
-	/*
-	if (d_pow[0] < 0) {
-		d_pow = d_pow * (-1);
+  cout << "=======\n"; 
+  cout << d_pow[0] << d_pow[1] << d_pow[2] << d_pow[3] << endl;
+    cout << e_pow[0] << e_pow[1] << e_pow[2] << e_pow[3] << endl;
+    cout << "------\n";
+	/*if (d_pow[0] < 0) {
+		d_pow = d_pow.cn;
 		printf("%i", d_pow[0]);
 	}*/
 
@@ -635,9 +638,10 @@ static RigTForm evaluateCatmull_Rom(RigTForm prev, RigTForm from, RigTForm to, R
 	Quat BC_QuatD = d_pow.quat_pow(1 / 6) * from.getRotation();
 	Quat BC_QuatE = e_pow.quat_pow(-1 / 6) * to.getRotation();
 	
-	//Quat BC_QuatD = Quat(1, 0, 0, 0);
-	//Quat BC_QuatE = Quat(1, 0, 0, 0);
-	RigTForm BC_D = RigTForm(BC_CvecD, BC_QuatD);
+//	Quat BC_QuatD = Quat(1, 0, 0, 0);
+//	Quat BC_QuatE = Quat(1, 0, 0, 0);
+
+  RigTForm BC_D = RigTForm(BC_CvecD, BC_QuatD);
 	RigTForm BC_E = RigTForm(BC_CvecE, BC_QuatE);
 
 	return evaluateBezier(from, to, BC_D, BC_E, alpha);
@@ -692,7 +696,7 @@ bool interpolateAndDisplay(float t) {
   //interpolate between the two
   int size = (*g_currentPlayingFromKeyframe).size();
   for (int i = 0; i < size; i++) {
-	  // Catmull Rom Interpolation
+    // Catmull Rom Interpolation
 	  RigTForm interpolation = evaluateCatmull_Rom((*g_previousPlayingFromKeyframe)[i], 
 		  (*g_currentPlayingFromKeyframe)[i], (*g_currentPlayingToKeyframe)[i], (*g_followingPlayingToKeyframe)[i], alpha);
 	  interpolations.push_back(interpolation);
