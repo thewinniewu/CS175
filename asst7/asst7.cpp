@@ -165,7 +165,13 @@ static vector<VertexPN> getMeshVertices(Mesh &mesh) {
     Cvec3 normals[3];
     for (int j = 1; j < face.getNumVertices() - 1; j++) {
 
-      normals[0] = normals[1] = normals[2] = face.getNormal();
+      if (g_smoothShadeOn) {
+        normals[0] = face.getVertex(0).getNormal();
+        normals[1] = face.getVertex(j).getNormal();
+        normals[2] = face.getVertex(j+1).getNormal();
+      } else {
+        normals[0] = normals[1] = normals[2] = face.getNormal();
+      }
 
       vertices.push_back(VertexPN(face.getVertex(0).getPosition(), normals[0]));
       vertices.push_back(VertexPN(face.getVertex(j).getPosition(), normals[1]));
@@ -176,10 +182,31 @@ static vector<VertexPN> getMeshVertices(Mesh &mesh) {
   return vertices;
 }
 
+static void updateMeshNormals(Mesh &mesh) {
+  // reset 
+  for (int i = 0, n = mesh.getNumVertices(); i < n; i++) {
+    Cvec3 vectorSum = Cvec3(); 
+    Mesh::Vertex v = mesh.getVertex(i);
+
+    Mesh::VertexIterator vertexIter(v.getIterator()), iterOrigin(vertexIter);
+
+    // walk around the vertex
+    do {
+      vectorSum += vertexIter.getFace().getNormal();
+    } while (++vertexIter != iterOrigin);
+
+    if (dot(vectorSum, vectorSum) > CS175_EPS2) {
+      vectorSum.normalize();
+    }
+
+    v.setNormal(Cvec3());
+  } 
+}
+
 static void initSubdivSurface() {
   g_subdivSurfaceMesh = Mesh();
   g_subdivSurfaceMesh.load("cube.mesh");
-  //updateMeshNormals(g_subdivSurfaceMesh);
+  updateMeshNormals(g_subdivSurfaceMesh);
 
   g_currentSubdivSurfaceMesh = Mesh(g_subdivSurfaceMesh);
 
@@ -1062,6 +1089,10 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     printf("- was pressed\n"); 
     g_msBetweenKeyFrames = min(1000, g_msBetweenKeyFrames + 100);
     cout << "The new speed is: " << g_msBetweenKeyFrames << "ms between keyframes\n"; 
+    break;
+  case 'f':
+    printf("f was pressed\n");
+    g_smoothShadeOn = !g_smoothShadeOn;
     break;
   }
   glutPostRedisplay();
