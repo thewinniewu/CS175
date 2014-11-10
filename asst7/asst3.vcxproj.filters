@@ -51,6 +51,18 @@
     <None Include="FieldstoneNormal.ppm">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="..\..\asst7\shaders\specular-gl2.fshader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\asst7\shaders\specular-gl3.fshader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\asst7\cube.mesh">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="..\..\asst7\mesh.interface">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arcball.h">
@@ -107,11 +119,11 @@
     <ClInclude Include="uniforms.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\asst7\mesh.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="asst6_5.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="geometry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -134,6 +146,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="asst7.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -11,6 +11,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\asst7\cube.mesh" />
+    <None Include="..\..\asst7\mesh.interface" />
+    <None Include="..\..\asst7\shaders\specular-gl2.fshader" />
+    <None Include="..\..\asst7\shaders\specular-gl3.fshader" />
     <None Include="Fieldstone.ppm" />
     <None Include="FieldstoneNormal.ppm" />
     <None Include="shaders\basic-gl2.vshader" />
@@ -27,6 +31,7 @@
     <None Include="shaders\solid-gl3.fshader" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\asst7\mesh.h" />
     <ClInclude Include="arcball.h" />
     <ClInclude Include="asstcommon.h" />
     <ClInclude Include="cvec.h" />
@@ -47,7 +52,7 @@
     <ClInclude Include="uniforms.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="asst6_5.cpp" />
+    <ClCompile Include="asst7.cpp" />
     <ClCompile Include="geometry.cpp" />
     <ClCompile Include="glsupport.cpp" />
     <ClCompile Include="material.cpp" />

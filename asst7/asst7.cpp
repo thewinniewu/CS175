@@ -202,9 +202,6 @@ static void updateMeshNormals(Mesh &mesh) {
   } 
 }
 
-
-
-
 static void applySubdivs(Mesh &mesh, int subdivLevel) {
   for (int i = 0; i < subdivLevel; i++) {
     // subdivide faces
@@ -220,7 +217,7 @@ static void applySubdivs(Mesh &mesh, int subdivLevel) {
     }
 
     // subdivide edges
-    for (int j = 0, n = mesh.getNumFaces(); j < n; j++) {
+    for (int j = 0, n = mesh.getNumEdges(); j < n; j++) {
       Mesh::Edge edge = mesh.getEdge(j);
       Cvec3 vertexSum = (edge.getVertex(0).getPosition() +
         edge.getVertex(1).getPosition() +
