@@ -129,7 +129,7 @@ static Mesh g_currentSubdivSurfaceMesh;
 static shared_ptr<SgRbtNode> g_meshNode;
 static int g_subdivSteps = 0;
 static bool g_smoothShadeOn = false;
-
+static float g_subdivSurfaceAnimateSpeed = 2.0;
 
 // for keyframe animation
 static int g_msBetweenKeyFrames = 2000; // 2 seconds between keyframes
@@ -159,7 +159,7 @@ static bool g_pickerMode = false;
 static vector<VertexPN> getMeshVertices(Mesh &mesh) {
   vector<VertexPN> vertices;
 
-  for (int i = 0; i < mesh.getNumFaces(); i++) {
+  for (int i = 0, n = mesh.getNumFaces(); i < n; i++) {
     Mesh::Face face = mesh.getFace(i);
     
     Cvec3 normals[3];
@@ -183,7 +183,6 @@ static vector<VertexPN> getMeshVertices(Mesh &mesh) {
 }
 
 static void updateMeshNormals(Mesh &mesh) {
-  // reset 
   for (int i = 0, n = mesh.getNumVertices(); i < n; i++) {
     Cvec3 vectorSum = Cvec3(); 
     Mesh::Vertex v = mesh.getVertex(i);
@@ -198,14 +197,102 @@ static void updateMeshNormals(Mesh &mesh) {
     if (dot(vectorSum, vectorSum) > CS175_EPS2) {
       vectorSum.normalize();
     }
-
-    v.setNormal(Cvec3());
+ 
+    v.setNormal(vectorSum);
   } 
 }
+
+
+
+
+static void applySubdivs(Mesh &mesh, int subdivLevel) {
+  for (int i = 0; i < subdivLevel; i++) {
+    // subdivide faces
+    for (int j = 0, n = mesh.getNumFaces(); j < n; j++) {
+      Mesh::Face face = mesh.getFace(j);
+      int verticesAroundFace = face.getNumVertices();
+      Cvec3 vertexSum = Cvec3();
+      for (int k = 0; k < verticesAroundFace; k++) {
+        vertexSum += face.getVertex(k).getPosition();
+      }
+      vertexSum = vertexSum * (1.0 / verticesAroundFace); 
+      mesh.setNewFaceVertex(face, vertexSum);
+    }
+
+    // subdivide edges
+    for (int j = 0, n = mesh.getNumFaces(); j < n; j++) {
+      Mesh::Edge edge = mesh.getEdge(j);
+      Cvec3 vertexSum = (edge.getVertex(0).getPosition() +
+        edge.getVertex(1).getPosition() +
+        mesh.getNewFaceVertex(edge.getFace(0)) +
+        mesh.getNewFaceVertex(edge.getFace(1))) * 0.25;
+      mesh.setNewEdgeVertex(edge, vertexSum); 
+    }
+
+    // subdivide vertices
+    for (int j = 0, n = mesh.getNumVertices(); j < n; j++) {
+      Mesh::Vertex v = mesh.getVertex(j);
+      int numOfVertices = 0;
+      
+      Mesh::VertexIterator vertexIter(v.getIterator()), iterOrigin(vertexIter);
+      Cvec3 accumVertices = Cvec3();
+      Cvec3 accumFaceVertices = Cvec3();
+
+      do {
+        accumVertices += vertexIter.getVertex().getPosition();
+        accumFaceVertices += mesh.getNewFaceVertex(vertexIter.getFace());
+        
+        numOfVertices++;
+      } while (++vertexIter != iterOrigin);
+      
+      double factor = 1.0 / (numOfVertices * numOfVertices);
+
+      Cvec3 vertexVertex = 
+        v.getPosition() * ((numOfVertices - 2.0) / numOfVertices) +
+        accumVertices * factor +
+        accumFaceVertices * factor; 
+      mesh.setNewVertexVertex(mesh.getVertex(j), vertexVertex);
+    }
+    
+    // subdivide for each level of subdivision we need 
+    mesh.subdivide();
+  }
+}
+
+static void animateSubdivSurfaceCallback(int ms) {
+  float t = (float) ms / 100.0;
+  
+  g_currentSubdivSurfaceMesh = Mesh(g_subdivSurfaceMesh);
+  
+  // make the vertices move 
+  for (int i = 0, n = g_subdivSurfaceMesh.getNumVertices(); i < n; i++) {
+    Cvec3 v = g_subdivSurfaceMesh.getVertex(i).getPosition();
+    
+    // periodic function 
+    g_currentSubdivSurfaceMesh.getVertex(i).setPosition(v + v * 0.8 * (sin((i * i) + t / 120.0)));
+  } 
+ 
+  // apply subdivisions as needed 
+  applySubdivs(g_currentSubdivSurfaceMesh, g_subdivSteps);
+  
+  updateMeshNormals(g_currentSubdivSurfaceMesh);
+
+  vector<VertexPN> vertices = getMeshVertices(g_currentSubdivSurfaceMesh);
+  g_subdivSurface->upload(&vertices[0], vertices.size());
+  glutPostRedisplay();
+
+  glutTimerFunc(
+    10,
+    animateSubdivSurfaceCallback,
+    100.0 * (t + g_subdivSurfaceAnimateSpeed)
+  );
+}
+
 
 static void initSubdivSurface() {
   g_subdivSurfaceMesh = Mesh();
   g_subdivSurfaceMesh.load("cube.mesh");
+  
   updateMeshNormals(g_subdivSurfaceMesh);
 
   g_currentSubdivSurfaceMesh = Mesh(g_subdivSurfaceMesh);
@@ -213,9 +300,10 @@ static void initSubdivSurface() {
   vector<VertexPN> vertices = getMeshVertices(g_currentSubdivSurfaceMesh);
   g_subdivSurface.reset(new SimpleGeometryPN());
   g_subdivSurface->upload(&vertices[0], vertices.size());
+  
+  animateSubdivSurfaceCallback(0);
 
 }
-
 
 static shared_ptr<SgRbtNode> getNodeForEye(ObjId i) {
    switch (i) { 
@@ -834,6 +922,8 @@ bool interpolateAndDisplay(float t) {
   return false;
 } 
 
+
+
 static void animateTimerCallback(int ms) {
   float t = (float) ms / (float) g_msBetweenKeyFrames;
 
@@ -1024,9 +1114,6 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     glFlush();
     writePpmScreenshot(g_windowWidth, g_windowHeight, "out.ppm");
     break;
-  /*case 'f':
-    g_activeShader ^= 1;
-    break;*/
   case 'v':
     g_activeEye = ObjId((g_activeEye+1) % 3);
     cerr << "Active eye is " << g_objNames[g_activeEye] << endl;
@@ -1093,6 +1180,27 @@ static void keyboard(const unsigned char key, const int x, const int y) {
   case 'f':
     printf("f was pressed\n");
     g_smoothShadeOn = !g_smoothShadeOn;
+    cout << "Smooth shading is on?: " << g_smoothShadeOn << endl; 
+    break;
+  case '0':
+    printf("0 was pressed\n");
+    g_subdivSteps = min(g_subdivSteps + 1, 6); 
+    cout << "The number of subdivisions is now: " << g_subdivSteps << endl;
+    break;
+  case '9':
+    printf("9 was pressed\n");
+    g_subdivSteps = max(g_subdivSteps - 1, 0);
+    cout << "The number of subdivisions is now: " << g_subdivSteps << endl;
+    break;
+  case '7':
+    printf("7 was pressed\n");
+    g_subdivSurfaceAnimateSpeed = max(0.25, g_subdivSurfaceAnimateSpeed/2.0); 
+    cout << "The speed of subdivision deformation is now: " << g_subdivSurfaceAnimateSpeed << endl;
+    break;
+  case '8':
+    printf("8 was pressed\n");
+    g_subdivSurfaceAnimateSpeed = min(32.0, g_subdivSurfaceAnimateSpeed * 2.0);
+    cout << "The speed of subdivision deformation is now: " << g_subdivSurfaceAnimateSpeed << endl;
     break;
   }
   glutPostRedisplay();

@@ -5,6 +5,8 @@
 #include <cassert>
 #include <algorithm>
 
+#include <ostream>
+
 static const double CS175_PI = 3.14159265358979323846264338327950288;
 static const double CS175_EPS = 1e-8;
 static const double CS175_EPS2 = CS175_EPS * CS175_EPS;
@@ -121,8 +123,13 @@ public:
 
   // Normalize self and returns self
   Cvec& normalize() {
-    assert(dot(*this, *this) > CS175_EPS2);
-    return *this /= std::sqrt(dot(*this, *this));
+   assert(dot(*this, *this) > CS175_EPS2);
+ //   if (dot(*this, *this) > CS175_EPS2) { 
+      return *this /= std::sqrt(dot(*this, *this));
+ //   } else {
+ //     std::cout << "WTF" << std::endl;
+ //     return *this;
+ //   }
   }
 };
 
