@@ -1105,6 +1105,11 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     << "y\t\tPlay/Stop playing keyframes\n"
     << "+\t\tSpeed up animation\n"
     << "-\t\tSlow down animation\n"
+	<< "f\t\tToggle smooth/flat shading\n"
+	<< "7\t\thalf the cube deformation speed, down to 0.25x speedro\n"
+	<< "8\t\tdouble the cube deformation speed, up to 32x speed\n"
+	<< "9\t\tdecrease the subdivision, down to 0\n"
+	<< "0\t\tincrease the subdivision, up to 6 steps"
     << endl;
     break;
   case 's':
@@ -1365,8 +1370,8 @@ static void initScene() {
 	g_robot1Node.reset(new SgRbtNode(RigTForm(Cvec3(-2, 1, 0))));
 	g_robot2Node.reset(new SgRbtNode(RigTForm(Cvec3(2, 1, 0))));
 
-	constructRobot(g_robot1Node, g_redDiffuseMat); // a Red robot
-	constructRobot(g_robot2Node, g_blueDiffuseMat); // a Blue robot
+	//constructRobot(g_robot1Node, g_redDiffuseMat); // a Red robot
+	//constructRobot(g_robot2Node, g_blueDiffuseMat); // a Blue robot
 
   /* lights */
   Cvec3 light1_pos = Cvec3(4.5, 3.0, 5.0);

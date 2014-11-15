@@ -89,7 +89,8 @@ Design:
 
   == Task 4 == 
   We use Catmull-Clark rules to get the new subdivided face-vertices, edge-vertices, and vertex-vertices.
- 
+  The max subdivision is 6 for performance purposes.
+
 Usage:
   - Use 'h' to get help directions. 
   - All keyboard controls and mouse actions are as per spec guidelines. Also described in 'h'.
