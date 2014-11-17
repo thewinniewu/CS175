@@ -60,7 +60,7 @@ using namespace tr1;
 // To complete the assignment you only need to edit the shader files that get
 // loaded
 // ----------------------------------------------------------------------------
-const bool g_Gl2Compatible = true;
+const bool g_Gl2Compatible = false;
 
 
 static const float g_frustMinFov = 60.0;  // A minimal of 60 degree field of view
@@ -395,43 +395,42 @@ static void hairsSimulationCallback(int dontCare) {
 	glutPostRedisplay(); // signal redisplaying
 }
 
+static vector<VertexPN> getMeshVertices(Mesh &mesh) {
+	vector<VertexPN> vertices;
+	for (int i = 0, n = mesh.getNumFaces(); i < n; i++) {
+		Mesh::Face face = mesh.getFace(i);
+
+		Cvec3 normals[3];
+		for (int j = 1; j < face.getNumVertices() - 1; j++) {
+
+			normals[0] = face.getVertex(0).getNormal();
+			normals[1] = face.getVertex(j).getNormal();
+			normals[2] = face.getVertex(j + 1).getNormal();
+
+			vertices.push_back(VertexPN(face.getVertex(0).getPosition(), normals[0]));
+			vertices.push_back(VertexPN(face.getVertex(j).getPosition(), normals[1]));
+			vertices.push_back(VertexPN(face.getVertex(j + 1).getPosition(), normals[2]));
+
+		}
+	}
+	return vertices;
+}
+
 // New function that initialize the dynamics simulation
 static void initSimulation() {
 	g_tipPos.resize(g_bunnyMesh.getNumVertices(), Cvec3(0));
 	g_tipVelocity = g_tipPos;
 
 	// TASK 1 TODO: initialize g_tipPos to "at-rest" hair tips in world coordinates
-
-	//...
+	vector<VertexPN> bunnyVertices = getMeshVertices(g_bunnyMesh);
+	for (int i = 0; i < g_bunnyMesh.getNumVertices(); i++) {
+		Cvec3f f_tipPos = (bunnyVertices[i].p + bunnyVertices[i].n * g_furHeight);
+		Cvec3 d_tipPos = Cvec3(f_tipPos[0], f_tipPos[1], f_tipPos[2]);
+		g_tipPos[i] = d_tipPos;
+	}
 
 	// Starts hair tip simulation
 	hairsSimulationCallback(0);
-}
-
-static vector<VertexPN> getMeshVertices(Mesh &mesh) {
-  vector<VertexPN> vertices;
-
-  for (int i = 0, n = mesh.getNumFaces(); i < n; i++) {
-    Mesh::Face face = mesh.getFace(i);
-    
-    Cvec3 normals[3];
-    for (int j = 1; j < face.getNumVertices() - 1; j++) {
-
-      if (g_smoothSubdRendering) {
-        normals[0] = face.getVertex(0).getNormal();
-        normals[1] = face.getVertex(j).getNormal();
-        normals[2] = face.getVertex(j+1).getNormal();
-      } else {
-        normals[0] = normals[1] = normals[2] = face.getNormal();
-      }
-
-      vertices.push_back(VertexPN(face.getVertex(0).getPosition(), normals[0]));
-      vertices.push_back(VertexPN(face.getVertex(j).getPosition(), normals[1]));
-      vertices.push_back(VertexPN(face.getVertex(j+1).getPosition(), normals[2]));
-
-    }
-  }
-  return vertices;
 }
 
 // Specifying shell geometries based on g_tipPos, g_furHeight, and g_numShells.
@@ -440,10 +439,9 @@ static void updateShellGeometry() {
 	// TASK 1 and 3 TODO: finish this function as part of Task 1 and Task 3
 	vector<VertexPN> bunnyVertices = getMeshVertices(Mesh(g_bunnyMesh));
 	for (int i = 0; i < g_numShells; i++) {
+		double furlength = g_furHeight / g_numShells;
 		vector<VertexPNX> shell;
 		for (int j = 0; j < bunnyVertices.size(); j += 3) {
-			double furlength = g_furHeight / g_numShells;
-			//printf("%i, %i, %i\n", bunnyVertices[j].p[0], bunnyVertices[j].p[1], bunnyVertices[j].p[2]);
 			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j].p + bunnyVertices[j].n * i * furlength), Cvec3f(bunnyVertices[j].n), Cvec2f(0, 0)));
 			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j+1].p + bunnyVertices[j+1].n * i * furlength), Cvec3f(bunnyVertices[j+1].n), Cvec2f(g_hairyness, 0)));
 			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j+2].p + bunnyVertices[j+2].n * i * furlength), Cvec3f(bunnyVertices[j+2].n), Cvec2f(0, g_hairyness)));
