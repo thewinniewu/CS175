@@ -437,7 +437,7 @@ static void initSimulation() {
 // You need to call this function whenver the shell needs to be updated
 static void updateShellGeometry() {
 	// TASK 1 and 3 TODO: finish this function as part of Task 1 and Task 3
-	vector<VertexPN> bunnyVertices = getMeshVertices(Mesh(g_bunnyMesh));
+	vector<VertexPN> bunnyVertices = getMeshVertices(g_bunnyMesh);
 	for (int i = 0; i < g_numShells; i++) {
 		double furlength = g_furHeight / g_numShells;
 		vector<VertexPNX> shell;
@@ -460,7 +460,7 @@ static void initBunnyMeshes() {
 
 	// TODO: Initialize g_bunnyGeometry from g_bunnyMesh, similar to
 
-	vector<VertexPN> vertices = getMeshVertices(Mesh(g_bunnyMesh));
+	vector<VertexPN> vertices = getMeshVertices(g_bunnyMesh);
 	g_bunnyGeometry.reset(new SimpleGeometryPN());
 	g_bunnyGeometry->upload(&vertices[0], vertices.size());
 
