@@ -438,6 +438,19 @@ static vector<VertexPN> getMeshVertices(Mesh &mesh) {
 // You need to call this function whenver the shell needs to be updated
 static void updateShellGeometry() {
 	// TASK 1 and 3 TODO: finish this function as part of Task 1 and Task 3
+	vector<VertexPN> bunnyVertices = getMeshVertices(Mesh(g_bunnyMesh));
+	for (int i = 0; i < g_numShells; i++) {
+		vector<VertexPNX> shell;
+		for (int j = 0; j < bunnyVertices.size(); j += 3) {
+			double furlength = g_furHeight / g_numShells;
+			//printf("%i, %i, %i\n", bunnyVertices[j].p[0], bunnyVertices[j].p[1], bunnyVertices[j].p[2]);
+			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j].p + bunnyVertices[j].n * i * furlength), Cvec3f(bunnyVertices[j].n), Cvec2f(0, 0)));
+			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j+1].p + bunnyVertices[j+1].n * i * furlength), Cvec3f(bunnyVertices[j+1].n), Cvec2f(g_hairyness, 0)));
+			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j+2].p + bunnyVertices[j+2].n * i * furlength), Cvec3f(bunnyVertices[j+2].n), Cvec2f(0, g_hairyness)));
+		}
+		g_bunnyShellGeometries[i]->upload(&shell[0], shell.size());
+	}
+
 }
 
 // New function that loads the bunny mesh and initializes the bunny shell meshes
@@ -1098,6 +1111,7 @@ static void specialKeyboard(const int key, const int x, const int y) {
 		cerr << "hairyness = " << g_hairyness << std::endl;
 		break;
 }
+	updateShellGeometry();
 	glutPostRedisplay();
 }
 
@@ -1316,6 +1330,7 @@ static void initScene() {
   g_bunnyNode->addChild(shared_ptr<MyShapeNode>(
 	  new MyShapeNode(g_bunnyGeometry, g_bunnyMat)));
 
+  updateShellGeometry();
   // add each shell as shape node
   for (int i = 0; i < g_numShells; ++i) {
 	  g_bunnyNode->addChild(shared_ptr<MyShapeNode>(
@@ -1365,7 +1380,7 @@ int main(int argc, char * argv[]) {
     initGeometry();
     initScene();
     initAnimation();
-	initSimulation();in
+	initSimulation();
 
     glutMainLoop();
     return 0;
