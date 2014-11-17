@@ -498,7 +498,7 @@ static void initBunnyMeshes() {
 
 	// TODO: Initialize g_bunnyGeometry from g_bunnyMesh, similar to
 
-	vector<VertexPN> vertices = getMeshVertices(Mesh(g_bunnyMesh));
+	vector<VertexPN> vertices = getMeshVertices(g_bunnyMesh);
 	g_bunnyGeometry.reset(new SimpleGeometryPN());
 	g_bunnyGeometry->upload(&vertices[0], vertices.size());
 
