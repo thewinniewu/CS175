@@ -416,39 +416,77 @@ static vector<VertexPN> getMeshVertices(Mesh &mesh) {
 	return vertices;
 }
 
-// New function that initialize the dynamics simulation
-static void initSimulation() {
-	g_tipPos.resize(g_bunnyMesh.getNumVertices(), Cvec3(0));
-	g_tipVelocity = g_tipPos;
+Cvec3 Cvec3fToCvec3(Cvec3f vec) {
+	return Cvec3(vec[0], vec[1], vec[2]);
+}
 
-	// TASK 1 TODO: initialize g_tipPos to "at-rest" hair tips in world coordinates
-	vector<VertexPN> bunnyVertices = getMeshVertices(g_bunnyMesh);
-	for (int i = 0; i < g_bunnyMesh.getNumVertices(); i++) {
-		Cvec3f f_tipPos = (bunnyVertices[i].p + bunnyVertices[i].n * g_furHeight);
-		Cvec3 d_tipPos = Cvec3(f_tipPos[0], f_tipPos[1], f_tipPos[2]);
-		g_tipPos[i] = d_tipPos;
-	}
+Cvec3f Cvec3ToCvec3f(Cvec3 vec) {
+	return Cvec3f(vec[0], vec[1], vec[2]);
+}
 
-	// Starts hair tip simulation
-	hairsSimulationCallback(0);
+int sum1toN(int n) {
+	return n *(n + 1) / 2;
+}
+
+const Cvec3f getDisplacementVector(VertexPN vertex, int index) {
+	//printf("i: %i\n", index);
+	Cvec3f displacement = Cvec3ToCvec3f(g_tipPos[index]) - vertex.p;
+	Cvec3f vector_d = (displacement - vertex.n * g_furHeight) / sum1toN(g_numShells);
+	return vector_d;
 }
 
 // Specifying shell geometries based on g_tipPos, g_furHeight, and g_numShells.
 // You need to call this function whenver the shell needs to be updated
 static void updateShellGeometry() {
 	// TASK 1 and 3 TODO: finish this function as part of Task 1 and Task 3
-	vector<VertexPN> bunnyVertices = getMeshVertices(Mesh(g_bunnyMesh));
+
+	vector<VertexPN> bunnyVertices = getMeshVertices(g_bunnyMesh);
 	for (int i = 0; i < g_numShells; i++) {
 		double furlength = g_furHeight / g_numShells;
 		vector<VertexPNX> shell;
 		for (int j = 0; j < bunnyVertices.size(); j += 3) {
+			/*
 			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j].p + bunnyVertices[j].n * i * furlength), Cvec3f(bunnyVertices[j].n), Cvec2f(0, 0)));
 			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j+1].p + bunnyVertices[j+1].n * i * furlength), Cvec3f(bunnyVertices[j+1].n), Cvec2f(g_hairyness, 0)));
 			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j+2].p + bunnyVertices[j+2].n * i * furlength), Cvec3f(bunnyVertices[j+2].n), Cvec2f(0, g_hairyness)));
+			*/
+			
+			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j].n * furlength * i + getDisplacementVector(bunnyVertices[j], j) * i), Cvec3f(bunnyVertices[j].n), Cvec2f(0, 0)));
+			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j + 1].n * furlength * i + getDisplacementVector(bunnyVertices[j + 1], j + 1) * i), Cvec3f(bunnyVertices[j + 1].n), Cvec2f(g_hairyness, 0)));
+			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j + 2].n * furlength * i + getDisplacementVector(bunnyVertices[j + 2], j + 2) * i), Cvec3f(bunnyVertices[j + 2].n), Cvec2f(0, g_hairyness)));
+			
+			/*
+			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j].n * furlength * i + (Cvec3ToCvec3f(g_tipPos[j]) - bunnyVertices[j].p - bunnyVertices[j].n * g_furHeight) * i / sum1toN(g_numShells)), Cvec3f(bunnyVertices[j].n), Cvec2f(0, 0)));
+			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j+1].n * furlength * i + (Cvec3ToCvec3f(g_tipPos[j+1]) - bunnyVertices[j+1].p - bunnyVertices[j+1].n * g_furHeight) * i / sum1toN(g_numShells)), Cvec3f(bunnyVertices[j].n), Cvec2f(0, 0)));
+			shell.push_back(VertexPNX(Cvec3f(bunnyVertices[j+2].n * furlength * i + (Cvec3ToCvec3f(g_tipPos[j+2]) - bunnyVertices[j+2].p - bunnyVertices[j+2].n * g_furHeight) * i / sum1toN(g_numShells)), Cvec3f(bunnyVertices[j].n), Cvec2f(0, 0)));
+			*/
 		}
 		g_bunnyShellGeometries[i]->upload(&shell[0], shell.size());
 	}
 
+}
+
+// New function that initialize the dynamics simulation
+static void initSimulation() {
+	//g_tipPos.resize(g_bunnyMesh.getNumVertices(), Cvec3(0));
+	//g_tipVelocity = g_tipPos;
+
+	// TASK 1 TODO: initialize g_tipPos to "at-rest" hair tips in world coordinates
+	vector<VertexPN> bunnyVertices = getMeshVertices(g_bunnyMesh);
+
+	g_tipPos.resize(bunnyVertices.size(), Cvec3(0));
+	g_tipVelocity = g_tipPos;
+
+	for (int i = 0; i < bunnyVertices.size(); i++) {
+		Cvec3f f_tipPos = (bunnyVertices[i].p + bunnyVertices[i].n * g_furHeight);
+		//Cvec3 d_tipPos = Cvec3(f_tipPos[0], f_tipPos[1], f_tipPos[2]);
+		g_tipPos[i] = Cvec3fToCvec3(f_tipPos);
+	}
+
+	updateShellGeometry();
+
+	// Starts hair tip simulation
+	hairsSimulationCallback(0);
 }
 
 // New function that loads the bunny mesh and initializes the bunny shell meshes
@@ -1328,7 +1366,7 @@ static void initScene() {
   g_bunnyNode->addChild(shared_ptr<MyShapeNode>(
 	  new MyShapeNode(g_bunnyGeometry, g_bunnyMat)));
 
-  updateShellGeometry();
+  //updateShellGeometry();
   // add each shell as shape node
   for (int i = 0; i < g_numShells; ++i) {
 	  g_bunnyNode->addChild(shared_ptr<MyShapeNode>(
